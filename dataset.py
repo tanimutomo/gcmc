@@ -62,87 +62,93 @@ class MCDataset(InMemoryDataset):
         
     def process(self):
         train_csv, test_csv = self.raw_paths
-        self.proc_train_info, proc_train_data = self.preprocess(train_csv)
-        self.proc_test_info, proc_test_data = self.preprocess(test_csv)
+        # self.proc_train_info, proc_train_data = self.preprocess(train_csv)
+        # self.proc_test_info, proc_test_data = self.preprocess(test_csv)
+        train_df, train_nums = self.preprocess(train_csv)
+        test_df, test_nums = self.preprocess(test_csv)
 
-        # for key, data in self.proc_train_info.items():
-        #     print(type(data))
-        # for key, data in self.proc_train_data.items():
-        #     print(type(data))
-        
-        train_data = Data(x=proc_train_data['x'], 
-                edge_index=proc_train_data['edge_index'])
-        # train_data.num_users = torch.tensor(proc_train_info['num_users'])
-        # train_data.num_items = torch.tensor(proc_train_info['num_items'])
-        # train_data.num_nodes = proc_train_info['num_nodes']
-        # train_data.num_edges = proc_train_info['num_edges']
-        train_data.edge_type = proc_train_data['edge_type']
-        train_data.edge_norm = proc_train_data['edge_norm']
-        
-        train_data, train_slices = self.collate([train_data])
-        torch.save((train_data, train_slices), self.processed_paths[0])
+        train_idx = create_gt_idx(train_df, train_nums)
+        test_idx = create_gt_idx(test_df, train_nums)
 
+        train_df['user_id'] = train_df['user_id']
+        train_df['item_id'] = train_df['item_id'] + train_nums['user']
 
-        test_data = Data(x=proc_test_data['x'], 
-                edge_index=proc_test_data['edge_index'])
-        # test_data.num_users = torch.tensor(proc_test_info['num_users'])
-        # test_data.num_items = torch.tensor(proc_test_info['num_items'])
-        # test_data.num_nodes = proc_test_info['num_nodes']
-        # test_data.num_edges = proc_test_info['num_edges']
-        test_data.edge_type = proc_test_data['edge_type']
-        test_data.edge_norm = proc_test_data['edge_norm']
-        
-        test_data, test_slices = self.collate([test_data])
-        torch.save((test_data, test_slices), self.processed_paths[1])
+        x = torch.arange(nums['node'], dtype=torch.long)
 
-    
-    def preprocess(self, csv_path):
-        col_names = ['user_id', 'item_id', 'relation', 'ts']
-        raw_data = pd.read_csv(csv_path, sep='\t', names=col_names)
-
-        num_users = raw_data.max()['user_id']
-        num_items = raw_data.max()['item_id']
-        num_nodes = num_users + num_items
-        num_edges = len(raw_data)
-
-        proc_data = raw_data.drop('ts', axis=1)
-        proc_data['user_id'] = proc_data['user_id'] - 1
-        proc_data['item_id'] = proc_data['item_id'] + num_users - 1
-
-        x = torch.arange(num_nodes, dtype=torch.long)
-
-        edge_user = torch.tensor(proc_data['user_id'].values)
-        edge_item = torch.tensor(proc_data['item_id'].values)
+        edge_user = torch.tensor(train_df['user_id'].values)
+        edge_item = torch.tensor(train_df['item_id'].values)
         edge_index = torch.stack((torch.cat((edge_user, edge_item), 0),
                                   torch.cat((edge_item, edge_user), 0)), 0)
         edge_index = edge_index.to(torch.long)
 
-        edge_type = torch.tensor(proc_data['relation'])
+        edge_type = torch.tensor(train_df['relation'])
         edge_type = torch.cat((edge_type, edge_type), 0)
 
         edge_norm = copy.deepcopy(edge_index[1])
-        for idx in range(num_nodes):
-            count = (proc_data == idx).values.sum()
+        for idx in range(nums['node']):
+            count = (train_df == idx).values.sum()
             edge_norm = torch.where(edge_norm==idx,
                                     torch.tensor(count),
                                     edge_norm)
 
         edge_norm = (1 / edge_norm.to(torch.double))
 
-        return [
-                {
-                    'num_users': num_users, 
-                    'num_items': num_items,
-                    'num_nodes': num_nodes,
-                    'num_edges': num_edges
-                },
-                {
-                    'x': x,
-                    'edge_index': edge_index,
-                    'edge_type': edge_type,
-                    'edge_norm': edge_norm
+        # return [
+        #         {
+        #             'num_users': num_users, 
+        #             'num_items': num_items,
+        #             'num_nodes': num_nodes,
+        #             'num_edges': num_edges
+        #         },
+        #         {
+        #             'x': x,
+        #             'edge_index': edge_index,
+        #             'edge_type': edge_type,
+        #             'edge_norm': edge_norm
+        #         }
+        #         ]
+
+        data = Data(x=x, edge_index=edge_index)
+        data.edge_type = edge_type
+        data.edge_norm = edge_norm
+        data.train_idx = train_idx
+        data.test_idx = test_idx
+        
+        data, slices = self.collate([data])
+        torch.save((data, slices), self.processed_paths[0])
+
+
+        # test_data = Data(x=proc_test_data['x'], 
+        #         edge_index=proc_test_data['edge_index'])
+        # test_data.edge_type = proc_test_data['edge_type']
+        # test_data.edge_norm = proc_test_data['edge_norm']
+        # 
+        # test_data, test_slices = self.collate([test_data])
+        # torch.save((test_data, test_slices), self.processed_paths[1])
+
+    
+    def create_df(self, csv_path):
+        col_names = ['user_id', 'item_id', 'relation', 'ts']
+        df = pd.read_csv(csv_path, sep='\t', names=col_names)
+        df = df.drop('ts', axis=1)
+        df['user_id'] = df['user_id'] - 1
+        df['item_id'] = df['item_id'] - 1
+
+        nums = {
+                'user': df.max()['user_id'] + 1,
+                'item': df.max()['item_id'] + 1,
+                'node': df.max()['user_id'] + df.max()['item_id'] + 2,
+                'edge': len(df)
                 }
-                ]
+
+        return df, nums
+
+
+    def create_gt_idx(self, df, nums):
+        df['idx'] = df['user_id'] * nums['item'] + df['item_id']
+        idx = torch.tensor(df['idx'])
+
+        return idx
 
     
     def get(self, idx):
