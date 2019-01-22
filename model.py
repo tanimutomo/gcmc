@@ -1,34 +1,35 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Parameter as Param
 from torch_geometric.nn.conv import MessagePassing
 
 from utils import uniform
 
-class GAE(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations):
-        super(GAE, self).__init__()
-        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations)
-        self.bidec = BiDecoder()
-
-    def forward():
-        u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
-        adj_matrices = self.bidec()
-
-        return adj_matrices
+# class GAE(nn.Module):
+#     def __init__(self, in_c, hid_c, out_c, num_relations):
+#         super(GAE, self).__init__()
+#         self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations)
+#         self.bidec = BiDecoder()
+# 
+#     def forward():
+#         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
+#         adj_matrices = self.bidec()
+# 
+#         return adj_matrices
 
 
 
 class GCEncoder(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations):
+    def __init__(self, in_c, hid_c, out_c, num_relations, drop_prob):
         super(GCEncoder, self).__init__()
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations)
-        self.dence_layer = DenceLayer(hid_c, out_c)
+        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob)
+        self.dense_layer = DenseLayer(hid_c, out_c, drop_prob)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         features = rgc_layer(x, edge_index, edge_type, edge_norm)
         u_features, i_features = self.separate_features(features)
-        u_features, i_features = dence_layer(u_features, i_features)
+        u_features, i_features = dense_layer(u_features, i_features)
 
         return u_features, i_features
 
@@ -56,7 +57,7 @@ class RGCLayer(MessagePassing):
         pass
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
-        return self.propagate('add', edge_index, x=x, edge_typ=edge_type, edge_norm)
+        return self.propagate('add', edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
 
     def message(self, x_j, edge_type, edge_norm):
         # create weight using ordinal weight sharing
@@ -91,9 +92,9 @@ class RGCLayer(MessagePassing):
 
 
 
-class DenceLayer(nn.Module):
+class DenseLayer(nn.Module):
     def __init__(self, in_c, out_c, drop_prob, bias=False):
-        super(DenceLayer, self).__init__()
+        super(DenseLayer, self).__init__()
 
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
@@ -108,25 +109,39 @@ class DenceLayer(nn.Module):
         return u_features, i_features
 
 
-
 class BiDecoder(nn.Module):
-    def __init__(self, out_c, num_basis, num_relations):
+    def __init__(self, feature_dim, num_basis, num_relations):
         super(BiDecoder, self).__init__()
-        self.out_c = out_c
-        self.basis_matrix = Param(torch.Tensor(num_basis, out_c * out_c))
+        self.feature_dim = feature_dim
+        self.basis_matrix = Param(torch.Tensor(num_basis, feature_dim * feature_dim))
         self.coefs = [Param(torch.Tensor(num_basis)) for r in range(num_relations)]
+        self.log_softmax = nn.LogSoftmax(dim=0)
 
     def forward(self, u_features, i_features):
         for relation in range(num_relations):
             q_matrix = torch.sum(self.coefs[relation] * self.basis_matrix, 0)
-            q_matrix = q_matrix.reshape(self.out_c, self.out_c)
+            q_matrix = q_matrix.reshape(self.feature_dim, self.feature_dim)
             try:
-                out = torch.cat((
-                        out_adj_matrices,
-                        torch.chain_matmul(u_features, q_matrix, i_features.t())),
-                        dim=0)
+                out = torch.cat((out, torch.chain_matmul(
+                    u_features, q_matrix, i_features.t())),dim=0)
             except:
                 out = torch.chain_matmul(
                         u_features, q_matrix, i_features.t()).unsqueeze(0)
 
+        out = self.log_softmax(out)
+
         return out
+
+if __name__ == '__main__':
+    in_c = 2625
+    hid_c = 500
+    out_c = 75
+    num_basis = 2
+    num_relations = 5
+    drop_prob = 0.7
+    gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, drop_prob)
+    bidec = BiDecoder(out_c, num_basis, num_relations)
+    # print(gcenc.rgc_layer)
+    dense = DenseLayer(in_c, out_c, drop_prob)
+    print(dense)
+    print(bidec)
