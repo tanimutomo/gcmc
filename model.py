@@ -1,23 +1,21 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Parameter as Param
 from torch_geometric.nn.conv import MessagePassing
 
 from utils import uniform
 
-# class GAE(nn.Module):
-#     def __init__(self, in_c, hid_c, out_c, num_relations):
-#         super(GAE, self).__init__()
-#         self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations)
-#         self.bidec = BiDecoder()
-# 
-#     def forward():
-#         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
-#         adj_matrices = self.bidec()
-# 
-#         return adj_matrices
+class GAE(nn.Module):
+    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, drop_prob):
+        super(GAE, self).__init__()
+        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, drop_prob)
+        self.bidec = BiDecoder(out_c, num_basis, num_relations)
 
+    def forward(x, edge_index, edge_type, edge_norm):
+        u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
+        adj_matrices = self.bidec(u_features, i_features)
+
+        return adj_matrices
 
 
 class GCEncoder(nn.Module):
@@ -43,12 +41,14 @@ class GCEncoder(nn.Module):
 
 class RGCLayer(MessagePassing):
     def __init__(self, in_c, out_c, num_relations, drop_prob):
+        super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
         self.num_relations = num_relations
         self.drop_prob = drop_prob
         
-        self.ord_basis = [Param(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
+        # self.ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
+        self.ord_basis = nn.Parameter(torch.Tensor(num_relations, 1, in_c * out_c))
 
         # weightの初期値についてはわからないので，とりあえずなしに．
         self.reset_parameters()
@@ -113,8 +113,8 @@ class BiDecoder(nn.Module):
     def __init__(self, feature_dim, num_basis, num_relations):
         super(BiDecoder, self).__init__()
         self.feature_dim = feature_dim
-        self.basis_matrix = Param(torch.Tensor(num_basis, feature_dim * feature_dim))
-        self.coefs = [Param(torch.Tensor(num_basis)) for r in range(num_relations)]
+        self.basis_matrix = nn.Parameter(torch.Tensor(num_basis, feature_dim * feature_dim))
+        self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
         self.log_softmax = nn.LogSoftmax(dim=0)
 
     def forward(self, u_features, i_features):
@@ -142,6 +142,25 @@ if __name__ == '__main__':
     gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, drop_prob)
     bidec = BiDecoder(out_c, num_basis, num_relations)
     # print(gcenc.rgc_layer)
+    rgc = RGCLayer(in_c, hid_c, num_relations, drop_prob)
     dense = DenseLayer(in_c, out_c, drop_prob)
-    print(dense)
-    print(bidec)
+    # print(rgc)
+    # print(dense)
+    # print(bidec)
+    # print(rgc.named_parameters())
+    # print(dense.named_parameters())
+    # print(bidec.named_parameters())
+
+    gae = GAE(in_c, hid_c, out_c, num_basis, num_relations, drop_prob)
+    print(gae.parameters())
+
+    params = rgc.parameters()
+    print(bidec.named_parameters())
+    for param in params:
+        print(param)
+
+    print(bidec.basis_matrix)
+    print(bidec.coefs)
+
+    print(bidec.basis_matrix.requires_grad)
+    print(bidec.coefs.requires_grad)
