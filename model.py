@@ -40,7 +40,6 @@ class GCEncoder(nn.Module):
 
 
 
-
 class RGCLayer(MessagePassing):
     def __init__(self, in_c, out_c, num_relations, drop_prob):
         self.in_c = in_c
