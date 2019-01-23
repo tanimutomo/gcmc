@@ -118,20 +118,20 @@ class BiDecoder(nn.Module):
         self.feature_dim = feature_dim
         self.basis_matrix = nn.Parameter(torch.Tensor(num_basis, feature_dim * feature_dim))
         self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
-        self.log_softmax = nn.LogSoftmax(dim=0)
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, u_features, i_features):
         for relation in range(self.num_relations):
-            q_matrix = torch.sum(self.coefs[relation] * self.basis_matrix, 0)
+            q_matrix = torch.sum(self.coefs[relation].unsqueeze(1) * self.basis_matrix, 0)
             q_matrix = q_matrix.reshape(self.feature_dim, self.feature_dim)
-            try:
-                out = torch.cat((out, torch.chain_matmul(
-                    u_features, q_matrix, i_features.t())),dim=0)
-            except:
+            if relation == 0:
                 out = torch.chain_matmul(
-                        u_features, q_matrix, i_features.t()).unsqueeze(0)
+                        u_features, q_matrix, i_features.t()).unsqueeze(-1)
+            else:
+                out = torch.cat((out, torch.chain_matmul(
+                    u_features, q_matrix, i_features.t()).unsqueeze(-1)),dim=2)
 
-        out = out.view(-1, u_features.shape[0] * i_features.shape[0])
+        out = out.view(u_features.shape[0] * i_features.shape[0], -1)
         out = self.log_softmax(out)
 
         return out
