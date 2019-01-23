@@ -1,0 +1,9 @@
+version: '3'
+services:
+  experiment:
+    volumes:
+      - ..:/app
+    build:
+      context: .
+      dockerfile: cpu.Dockerfile
+    image: tf_cpu_sample

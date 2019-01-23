@@ -1,0 +1,10 @@
+version: '2.3'
+services:
+  experiment:
+    runtime: nvidia
+    volumes:
+      - ..:/app
+    build:
+      context: .
+      dockerfile: gpu.Dockerfile
+    image: tf_gpu_sample
