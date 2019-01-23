@@ -6,6 +6,10 @@ def uniform(size, tensor):
     if tensor is not None:
         tensor.data.uniform_(-stdv, stdv)
 
+def random_init(ster, tensor):
+    if tensor is not None:
+        tensor.data.uniform_(-ster, ster)
+
 def calc_rmse(pred, gt):
     expected_pred = torch.zeros(gt.shape)
     for relation in range(pred.shape[1]):
