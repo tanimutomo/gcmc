@@ -1,0 +1,24 @@
+docker_path: './docker'
+
+# Number of GPUs to use
+num_use_gpu: 1
+
+# gitURL and branch of the project
+git_url: '' # ex) 'https://github.com/username/pjname.git'
+git_branch: '' # ex) 'master'
+
+# project directory path in remote server
+pj_root: '' # ex) '/home/username/Project/pjname'
+
+# kronos copy "origin_data" dir to "data_dir"
+# The path of the original data directory in the remote server
+origin_data: '' # ex) '/home/username/Project/data/mnist_data'
+# The path of the data directory seen from project directory
+data_dir: '' # ex) 'data/'
+
+# If you want to fix server and GPU number you use, please specify them
+fix_server: '' # ex) 'bacchus'
+fix_gpu: [] # ex) [0, 1]
+
+# ssh config path
+ssh_config_path: '' # ex) '~/.ssh/config'
