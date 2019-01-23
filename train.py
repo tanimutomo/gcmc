@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from dataset import MCDataset
 from model import GAE
@@ -15,6 +16,7 @@ class Trainer:
         self.num_basis = 2
         self.drop_prob = 0.7
         self.epochs = 100
+        self.lr = 0.08
 
     def set_dataset(self):
         pass
@@ -43,37 +45,48 @@ class Trainer:
                 )
         self.model = self.model.to(self.device)
 
-        self.criterion = nn.NLLLoss()
+        # self.criterion = nn.NLLLoss()
         self.optimizer = torch.optim.Adam(
-                self.model.parameters(), lr=0.01, weight_decay=0.005)
+                self.model.parameters(), lr=self.lr, weight_decay=0.005)
 
 
     def iterate(self):
         for epoch in range(self.epochs):
-            loss, train_rmse = self.train()
+            loss, train_rmse = self.train(epoch)
             if epoch % 10 == 0:
                 test_rmse = self.test()
                 self.summary(epoch, loss, train_rmse, test_rmse)
             else:
-                self.summary(epoch, loss, train_rmse)
+                self.summary(epoch, loss)
 
         print('END TRAINING')
 
 
-    def train(self):
+    def train(self, epoch):
         self.model.train()
         self.optimizer.zero_grad()
         out = self.model(
                 self.data.x, self.data.edge_index,
                 self.data.edge_type, self.data.edge_norm
                 )
-        loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
+        # loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
+        loss = F.nll_loss(out[self.data.train_idx], self.data.train_gt)
         loss.backward()
         self.optimizer.step()
 
-        rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
+        if epoch % 10 == 0:
+            rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
+            return loss, rmse
+        else:
+            return loss, None
 
-        return loss, rmse
+        # print('model grad: ', list(self.model.parameters())[0].grad)
+        # print(self.model.bidec.basis_matrix.grad)
+        # print(self.model.bidec.coefs[2].grad)
+        # print('--------Parameter---------')
+        # for param in self.model.parameters():
+        #     print(param)
+
 
 
     def test(self):
@@ -88,14 +101,14 @@ class Trainer:
         return rmse
 
 
-    def summary(self, epoch, loss, train_rmse, test_rmse=None):
+    def summary(self, epoch, loss, train_rmse=None, test_rmse=None):
         if test_rmse is None:
-            print('[ Epoch: {} / Loss: {} / RMSE: {} ]'.format(
-                epoch, loss, train_rmse))
+            print('[ Epoch: {}/{} | Loss: {} ]'.format(
+                epoch, self.epochs, loss))
         else:
             print('')
-            print('[ Epoch: {} / Loss: {} / RMSE: {} / Test RMSE: {} ]'.format(
-                epoch, loss, train_rmse, test_rmse))
+            print('[ Epoch: {}/{} | Loss: {} | RMSE: {} | Test RMSE: {} ]'.format(
+                epoch, self.epochs, loss, train_rmse, test_rmse))
             print('')
             
         
