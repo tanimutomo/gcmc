@@ -125,6 +125,7 @@ class MCDataset(InMemoryDataset):
         df = df.drop('ts', axis=1)
         df['user_id'] = df['user_id'] - 1
         df['item_id'] = df['item_id'] - 1
+        df['relation'] = df['relation'] - 1
 
         nums = {
                 'user': df.max()['user_id'] + 1,
@@ -139,7 +140,7 @@ class MCDataset(InMemoryDataset):
     def create_gt_idx(self, df, nums):
         df['idx'] = df['user_id'] * nums['item'] + df['item_id']
         idx = torch.tensor(df['idx'])
-        gt = torch.tensor(df['relation'] - 1)
+        gt = torch.tensor(df['relation'])
 
         return idx, gt
 
