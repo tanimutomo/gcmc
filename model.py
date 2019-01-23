@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import MessagePassing
 
-from utils import uniform
+from utils import uniform, random_init
 
 class GAE(nn.Module):
     def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, num_user, drop_prob):
@@ -48,14 +48,22 @@ class RGCLayer(MessagePassing):
         self.num_relations = num_relations
         self.drop_prob = drop_prob
         
-        # self.ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
-        self.ord_basis = nn.Parameter(torch.Tensor(num_relations, 1, in_c * out_c))
+        ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
+        self.ord_basis = nn.ParameterList(ord_basis)
+        self.relu = nn.ReLU()
 
-        # weightの初期値についてはわからないので，とりあえずなしに．
         self.reset_parameters()
+        # self.ord_basis = nn.Parameter(torch.Tensor(num_relations, 1, in_c * out_c))
+
 
     def reset_parameters(self):
-        pass
+        # self.ord_basis = nn.ParameterList()
+        # size = self.in_c * self.out_c
+        # for basis in self.ord_basis:
+        #     basis = uniform(size, basis)
+        #     self.ord_basis.append(basis)
+        for basis in self.ord_basis:
+            basis = random_init(1e-3, basis)
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
         return self.propagate('add', edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
@@ -73,6 +81,7 @@ class RGCLayer(MessagePassing):
         weight = self.node_dropout(weight)
         index = edge_type * self.in_c + x_j
         out = weight[index]
+        out = self.relu(out)
 
         return out if edge_norm is None else out * edge_norm.reshape(-1, 1)
 
@@ -82,13 +91,16 @@ class RGCLayer(MessagePassing):
 
     def node_dropout(self, weight):
         drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
-        drop_mask = torch.floor(drop_mask).type(torch.ByteTensor)
+        # drop_mask = torch.floor(drop_mask).type(torch.uint8)
+        drop_mask = torch.floor(drop_mask).type(torch.float)
         drop_mask = torch.cat([drop_mask 
             for r in range(self.num_relations)], 0).unsqueeze(1)
         drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
 
-        weight = torch.where(drop_mask, weight, 
-                torch.tensor(0, dtype=weight.dtype))
+        # weight = torch.where(drop_mask, weight, 
+        #         torch.tensor(0, dtype=weight.dtype))
+        assert weight.shape == drop_mask.shape
+        weight = weight * drop_mask
 
         return weight
 
@@ -114,11 +126,28 @@ class DenseLayer(nn.Module):
 class BiDecoder(nn.Module):
     def __init__(self, feature_dim, num_basis, num_relations):
         super(BiDecoder, self).__init__()
+        self.num_basis = num_basis
         self.num_relations = num_relations
         self.feature_dim = feature_dim
-        self.basis_matrix = nn.Parameter(torch.Tensor(num_basis, feature_dim * feature_dim))
-        self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
+        self.basis_matrix = nn.Parameter(
+                torch.Tensor(num_basis, feature_dim * feature_dim))
+        # self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
+        # basis_matrix = [nn.Parameter(torch.Tensor(
+        #     feature_dim * feature_dim)) for b in range(num_basis)]
+        coefs = [nn.Parameter(torch.Tensor(num_basis)
+            ) for b in range(num_relations)]
+        self.coefs = nn.ParameterList(coefs)
+        # self.basis_matrix = nn.ParameterList(basis_matrix)
         self.log_softmax = nn.LogSoftmax(dim=1)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        # size_basis = self.num_basis * self.feature_dim
+        # size_coef = self.num_basis * self.num_relations
+        random_init(1e-3, self.basis_matrix)
+        for coef in self.coefs:
+            random_init(1e-3, coef)
 
     def forward(self, u_features, i_features):
         for relation in range(self.num_relations):
@@ -133,6 +162,7 @@ class BiDecoder(nn.Module):
 
         out = out.view(u_features.shape[0] * i_features.shape[0], -1)
         out = self.log_softmax(out)
+        # out = F.log_softmax(out, dim=1)
 
         return out
 
