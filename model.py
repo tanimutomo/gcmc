@@ -81,12 +81,13 @@ class RGCLayer(MessagePassing):
         weight = self.node_dropout(weight)
         index = edge_type * self.in_c + x_j
         out = weight[index]
-        out = self.relu(out)
+        # out = self.relu(out)
 
         return out if edge_norm is None else out * edge_norm.reshape(-1, 1)
 
     def update(self, aggr_out):
         # aggr_out has shape [N, out_channles]
+        aggr_out = self.relu(aggr_out)
         return aggr_out
 
     def node_dropout(self, weight):
