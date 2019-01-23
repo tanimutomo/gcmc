@@ -69,15 +69,15 @@ class Trainer:
                 )
         loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
 
         rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
 
-        return loss.item(), rmse.item()
+        return loss, rmse
 
 
     def test(self):
-        model.eval()
+        self.model.eval()
         out = self.model(
                 self.data.x, self.data.edge_index, 
                 self.data.edge_type, self.data.edge_norm
@@ -85,11 +85,11 @@ class Trainer:
 
         rmse = calc_rmse(out[self.data.test_idx], self.data.test_gt)
 
-        return rmse.item()
+        return rmse
 
 
     def summary(self, epoch, loss, train_rmse, test_rmse=None):
-        if test_rmse is not None:
+        if test_rmse is None:
             print('[ Epoch: {} / Loss: {} / RMSE: {} ]'.format(
                 epoch, loss, train_rmse))
         else:
