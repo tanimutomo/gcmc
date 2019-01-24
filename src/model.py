@@ -9,7 +9,7 @@ class GAE(nn.Module):
         super(GAE, self).__init__()
         self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, 
                 drop_prob, ster, weight_init)
-        self.bidec = BiDecoder(out_c, num_basis, num_relations, ster)
+        self.bidec = BiDecoder(out_c, num_basis, num_relations, ster, weight_init)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
@@ -114,11 +114,10 @@ class RGCLayer(MessagePassing):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_c, out_c, drop_prob, num_nodes, num_user, weight_init bias=False):
+    def __init__(self, in_c, out_c, drop_prob, num_nodes, num_user, weight_init, bias=False):
         super(DenseLayer, self).__init__()
         self.num_nodes = num_nodes
         self.num_user = num_user
-        self.weight_init = weight_init
 
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
@@ -145,10 +144,11 @@ class DenseLayer(nn.Module):
 
 
 class BiDecoder(nn.Module):
-    def __init__(self, feature_dim, num_basis, num_relations, ster):
+    def __init__(self, feature_dim, num_basis, num_relations, ster, weight_init):
         super(BiDecoder, self).__init__()
         self.num_basis = num_basis
         self.num_relations = num_relations
+        self.weight_init = weight_init
         self.feature_dim = feature_dim
         self.ster = ster
 
