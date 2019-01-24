@@ -14,21 +14,11 @@ class Trainer:
         self.dataset_name = dataset_name
         self.hidden_size = [500, 75]
         self.num_basis = 2
-        self.drop_prob = 0.7
-        self.epochs = 100
-        self.lr = 0.08
+        self.drop_prob = 0.3
+        self.epochs = 1000
+        self.lr = 0.01
+        self.ster = 1e-3
 
-    def set_dataset(self):
-        pass
-        # self.dataset = MCDataset(root='./data/ml-100k', name='ml-100k')
-        # self.num_train_users = dataset.num_train_users
-        # self.num_train_items = dataset.num_train_items
-        # self.num_test_users = dataset.num_test_users
-        # self.num_test_items = dataset.num_test_items
-
-        # self.train_data, self.test_data = self.dataset[0][0], self.dataset[1][0]
-        # self.train_data = self.train_data.to(self.device)
-        # self.test_data = self.test_data.to(self.device)
 
     def train_setting(self):
         dataset = MCDataset(self.root, self.dataset_name)
@@ -40,12 +30,13 @@ class Trainer:
                 self.hidden_size[1],
                 self.num_basis,
                 dataset.num_relations,
-                self.data.num_users,
-                self.drop_prob
+                int(self.data.num_users),
+                self.drop_prob,
+                self.ster
                 )
         self.model = self.model.to(self.device)
 
-        # self.criterion = nn.NLLLoss()
+        self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(
                 self.model.parameters(), lr=self.lr, weight_decay=0.005)
 
@@ -53,11 +44,11 @@ class Trainer:
     def iterate(self):
         for epoch in range(self.epochs):
             loss, train_rmse = self.train(epoch)
-            if epoch % 10 == 0:
-                test_rmse = self.test()
-                self.summary(epoch, loss, train_rmse, test_rmse)
-            else:
-                self.summary(epoch, loss)
+            # if epoch % 10 == 0:
+            test_rmse = self.test()
+            self.summary(epoch, loss, train_rmse, test_rmse)
+            # else:
+            #     self.summary(epoch, loss)
 
         print('END TRAINING')
 
@@ -69,25 +60,25 @@ class Trainer:
                 self.data.x, self.data.edge_index,
                 self.data.edge_type, self.data.edge_norm
                 )
-        # loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
-        loss = F.nll_loss(out[self.data.train_idx], self.data.train_gt)
+        loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
+        # loss = F.nll_loss(out[self.data.train_idx], self.data.train_gt)
         loss.backward()
         self.optimizer.step()
 
-        if epoch % 10 == 0:
-            rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
-            return loss, rmse
-        else:
-            return loss, None
+        # print('--------Parameter---------')
+        # for param in self.model.parameters():
+        #     print(param.grad)
+        # print('--------------------------')
+
+        # if epoch % 10 == 0:
+        rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
+        return loss, rmse
+        # else:
+        #     return loss, None
 
         # print('model grad: ', list(self.model.parameters())[0].grad)
         # print(self.model.bidec.basis_matrix.grad)
         # print(self.model.bidec.coefs[2].grad)
-        # print('--------Parameter---------')
-        # for param in self.model.parameters():
-        #     print(param)
-
-
 
     def test(self):
         self.model.eval()
@@ -106,10 +97,10 @@ class Trainer:
             print('[ Epoch: {}/{} | Loss: {} ]'.format(
                 epoch, self.epochs, loss))
         else:
-            print('')
+            # print('')
             print('[ Epoch: {}/{} | Loss: {} | RMSE: {} | Test RMSE: {} ]'.format(
                 epoch, self.epochs, loss, train_rmse, test_rmse))
-            print('')
+            # print('')
             
         
 
