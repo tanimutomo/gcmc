@@ -2,7 +2,8 @@ import torch
 
 from src.dataset import MCDataset
 from src.model import GAE
-from src.utils import calc_rmse random_init
+from src.train import Trainer
+from src.utils import calc_rmse, random_init
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     name = 'ml-100k'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = MCDataset(root, dataset_name)
+    dataset = MCDataset(root, name)
     data = dataset[0].to(device)
 
     model = GAE(
@@ -32,10 +33,7 @@ def main():
         random_init
         ).to(device)
 
-    trainer = Trainer(
-            model, optimizer, criterion, dataset, data
-            calc_rmse, epochs, lr, ster
-            )
+    trainer = Trainer(model, dataset, data, calc_rmse, epochs, lr)
     trainer.iterate()
 
 
