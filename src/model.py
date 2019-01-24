@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric.nn.conv import MessagePassing
 
-from utils import uniform, random_init
 
 class GAE(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, num_user, drop_prob, ster):
+    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, 
+            num_user, drop_prob, ster, weight_init):
         super(GAE, self).__init__()
-        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster)
+        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, 
+                drop_prob, ster, weight_init)
         self.bidec = BiDecoder(out_c, num_basis, num_relations, ster)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
@@ -19,11 +19,11 @@ class GAE(nn.Module):
 
 
 class GCEncoder(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster):
+    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster, weight_init):
         super(GCEncoder, self).__init__()
         self.num_user = num_user
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob, ster)
-        self.dense_layer = DenseLayer(hid_c, out_c, drop_prob, in_c, num_user)
+        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob, ster, weight_init)
+        self.dense_layer = DenseLayer(hid_c, out_c, drop_prob, in_c, num_user, weight_init)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         features = self.rgc_layer(x, edge_index, edge_type, edge_norm)
@@ -41,13 +41,14 @@ class GCEncoder(nn.Module):
 
 
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, ster):
+    def __init__(self, in_c, out_c, num_relations, drop_prob, ster, weight_init):
         super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
         self.num_relations = num_relations
         self.drop_prob = drop_prob
         self.ster = ster
+        self.weight_init = weight_init
         
         ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
         self.ord_basis = nn.ParameterList(ord_basis)
@@ -65,7 +66,7 @@ class RGCLayer(MessagePassing):
         #     basis = uniform(size, basis)
         #     self.ord_basis.append(basis)
         for basis in self.ord_basis:
-            basis = random_init(self.ster, basis)
+            basis = self.weight_init(self.ster, basis)
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
         return self.propagate('add', edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
@@ -113,10 +114,12 @@ class RGCLayer(MessagePassing):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_c, out_c, drop_prob, num_nodes, num_user, bias=False):
+    def __init__(self, in_c, out_c, drop_prob, num_nodes, num_user, weight_init bias=False):
         super(DenseLayer, self).__init__()
         self.num_nodes = num_nodes
         self.num_user = num_user
+        self.weight_init = weight_init
+
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
         # print(num_user, num_nodes)
@@ -165,9 +168,9 @@ class BiDecoder(nn.Module):
     def reset_parameters(self):
         # size_basis = self.num_basis * self.feature_dim
         # size_coef = self.num_basis * self.num_relations
-        random_init(self.ster, self.basis_matrix)
+        self.weight_init(self.ster, self.basis_matrix)
         for coef in self.coefs:
-            random_init(self.ster, coef)
+            self.weight_init(self.ster, coef)
 
     def forward(self, u_features, i_features):
         for relation in range(self.num_relations):

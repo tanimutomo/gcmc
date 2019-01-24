@@ -1,45 +1,27 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-from dataset import MCDataset
-from model import GAE
-from utils import calc_rmse
 
 
 class Trainer:
-    def __init__(self, root, dataset_name):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.root = root
-        self.dataset_name = dataset_name
-        self.hidden_size = [500, 75]
-        self.num_basis = 2
-        self.drop_prob = 0.3
-        self.epochs = 1000
-        self.lr = 0.01
-        self.ster = 1e-3
+    def __init__(self, model, optimizer, criterion, dataset, data, calc_rmse, epochs, lr):
+        self.model = model
+        self.optimizer = optimizer
+        self.criterion = criterion
+        self.dataset = dataset
+        self.data = data
+        # self.device = device
+        self.calc_rmse = calc_rmse
+
+        self.epochs = epochs
+        self.lr = lr
+
+        self.train_setting()
 
 
-    def train_setting(self):
-        dataset = MCDataset(self.root, self.dataset_name)
-        print(dataset[0])
-        self.data = dataset[0].to(self.device)
-        self.model = GAE(
-                dataset.num_nodes,
-                self.hidden_size[0],
-                self.hidden_size[1],
-                self.num_basis,
-                dataset.num_relations,
-                int(self.data.num_users),
-                self.drop_prob,
-                self.ster
-                )
-        self.model = self.model.to(self.device)
-
+    def train_setting(self)
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(
                 self.model.parameters(), lr=self.lr, weight_decay=0.005)
-
 
     def iterate(self):
         for epoch in range(self.epochs):
@@ -105,8 +87,3 @@ class Trainer:
         
 
 if __name__ == '__main__':
-    root = 'data/ml-100k'
-    name = 'ml-100k'
-    trainer = Trainer(root, name)
-    trainer.train_setting()
-    trainer.iterate()
