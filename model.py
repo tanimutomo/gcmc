@@ -6,10 +6,10 @@ from torch_geometric.nn.conv import MessagePassing
 from utils import uniform, random_init
 
 class GAE(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, num_user, drop_prob):
+    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, num_user, drop_prob, ster):
         super(GAE, self).__init__()
-        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, drop_prob)
-        self.bidec = BiDecoder(out_c, num_basis, num_relations)
+        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster)
+        self.bidec = BiDecoder(out_c, num_basis, num_relations, ster)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
@@ -19,11 +19,11 @@ class GAE(nn.Module):
 
 
 class GCEncoder(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob):
+    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster):
         super(GCEncoder, self).__init__()
         self.num_user = num_user
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob)
-        self.dense_layer = DenseLayer(hid_c, out_c, drop_prob)
+        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob, ster)
+        self.dense_layer = DenseLayer(hid_c, out_c, drop_prob, in_c, num_user)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         features = self.rgc_layer(x, edge_index, edge_type, edge_norm)
@@ -41,15 +41,17 @@ class GCEncoder(nn.Module):
 
 
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, drop_prob):
+    def __init__(self, in_c, out_c, num_relations, drop_prob, ster):
         super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
         self.num_relations = num_relations
         self.drop_prob = drop_prob
+        self.ster = ster
         
         ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
         self.ord_basis = nn.ParameterList(ord_basis)
+        self.bn = nn.BatchNorm1d(self.in_c)
         self.relu = nn.ReLU()
 
         self.reset_parameters()
@@ -63,7 +65,7 @@ class RGCLayer(MessagePassing):
         #     basis = uniform(size, basis)
         #     self.ord_basis.append(basis)
         for basis in self.ord_basis:
-            basis = random_init(1e-3, basis)
+            basis = random_init(self.ster, basis)
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
         return self.propagate('add', edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
@@ -87,8 +89,9 @@ class RGCLayer(MessagePassing):
 
     def update(self, aggr_out):
         # aggr_out has shape [N, out_channles]
+        aggr_out = self.bn(aggr_out.unsqueeze(0))
         aggr_out = self.relu(aggr_out)
-        return aggr_out
+        return aggr_out.squeeze(0)
 
     def node_dropout(self, weight):
         drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
@@ -96,7 +99,9 @@ class RGCLayer(MessagePassing):
         drop_mask = torch.floor(drop_mask).type(torch.float)
         drop_mask = torch.cat([drop_mask 
             for r in range(self.num_relations)], 0).unsqueeze(1)
+
         drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
+
 
         # weight = torch.where(drop_mask, weight, 
         #         torch.tensor(0, dtype=weight.dtype))
@@ -108,28 +113,42 @@ class RGCLayer(MessagePassing):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_c, out_c, drop_prob, bias=False):
+    def __init__(self, in_c, out_c, drop_prob, num_nodes, num_user, bias=False):
         super(DenseLayer, self).__init__()
-
+        self.num_nodes = num_nodes
+        self.num_user = num_user
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
+        # print(num_user, num_nodes)
+        self.bn_u = nn.BatchNorm1d(num_user)
+        self.bn_i = nn.BatchNorm1d(num_nodes - num_user)
+        self.relu = nn.ReLU()
 
     def forward(self, u_features, i_features):
+        # print(u_features.shape, i_features.shape)
         u_features = self.dropout(u_features)
         u_features = self.fc(u_features)
+        u_features = self.bn_u(
+                u_features.unsqueeze(0)).squeeze()
+        u_features = self.relu(u_features)
 
         i_features = self.dropout(i_features)
         i_features = self.fc(i_features)
+        i_features = self.bn_i(
+                i_features.unsqueeze(0)).squeeze()
+        i_features = self.relu(i_features)
 
         return u_features, i_features
 
 
 class BiDecoder(nn.Module):
-    def __init__(self, feature_dim, num_basis, num_relations):
+    def __init__(self, feature_dim, num_basis, num_relations, ster):
         super(BiDecoder, self).__init__()
         self.num_basis = num_basis
         self.num_relations = num_relations
         self.feature_dim = feature_dim
+        self.ster = ster
+
         self.basis_matrix = nn.Parameter(
                 torch.Tensor(num_basis, feature_dim * feature_dim))
         # self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
@@ -139,16 +158,16 @@ class BiDecoder(nn.Module):
             ) for b in range(num_relations)]
         self.coefs = nn.ParameterList(coefs)
         # self.basis_matrix = nn.ParameterList(basis_matrix)
-        self.log_softmax = nn.LogSoftmax(dim=1)
+        # self.log_softmax = nn.LogSoftmax(dim=1)
 
         self.reset_parameters()
 
     def reset_parameters(self):
         # size_basis = self.num_basis * self.feature_dim
         # size_coef = self.num_basis * self.num_relations
-        random_init(1e-3, self.basis_matrix)
+        random_init(self.ster, self.basis_matrix)
         for coef in self.coefs:
-            random_init(1e-3, coef)
+            random_init(self.ster, coef)
 
     def forward(self, u_features, i_features):
         for relation in range(self.num_relations):
@@ -162,7 +181,7 @@ class BiDecoder(nn.Module):
                     u_features, q_matrix, i_features.t()).unsqueeze(-1)),dim=2)
 
         out = out.view(u_features.shape[0] * i_features.shape[0], -1)
-        out = self.log_softmax(out)
+        # out = self.log_softmax(out)
         # out = F.log_softmax(out, dim=1)
 
         return out
