@@ -3,10 +3,8 @@ import torch.nn as nn
 
 
 class Trainer:
-    def __init__(self, model, optimizer, criterion, dataset, data, calc_rmse, epochs, lr):
+    def __init__(self, model, dataset, data, calc_rmse, epochs, lr):
         self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
         self.dataset = dataset
         self.data = data
         # self.device = device
@@ -18,7 +16,7 @@ class Trainer:
         self.train_setting()
 
 
-    def train_setting(self)
+    def train_setting(self):
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(
                 self.model.parameters(), lr=self.lr, weight_decay=0.005)
@@ -53,7 +51,7 @@ class Trainer:
         # print('--------------------------')
 
         # if epoch % 10 == 0:
-        rmse = calc_rmse(out[self.data.train_idx], self.data.train_gt)
+        rmse = self.calc_rmse(out[self.data.train_idx], self.data.train_gt)
         return loss, rmse
         # else:
         #     return loss, None
@@ -69,7 +67,7 @@ class Trainer:
                 self.data.edge_type, self.data.edge_norm
                 )
 
-        rmse = calc_rmse(out[self.data.test_idx], self.data.test_gt)
+        rmse = self.calc_rmse(out[self.data.test_idx], self.data.test_gt)
 
         return rmse
 
@@ -87,3 +85,4 @@ class Trainer:
         
 
 if __name__ == '__main__':
+    pass
