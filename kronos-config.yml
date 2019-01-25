@@ -4,11 +4,11 @@ docker_path: './docker'
 num_use_gpu: 1
 
 # gitURL and branch of the project
-git_url: '' # ex) 'https://github.com/username/pjname.git'
-git_branch: '' # ex) 'master'
+git_url: 'https://github.com/tanimutomo/gcmc.git' # ex) 'https://github.com/username/pjname.git'
+git_branch: 'experiment' # ex) 'master'
 
 # project directory path in remote server
-pj_root: '' # ex) '/home/username/Project/pjname'
+pj_root: '/home/tanimu/Project' # ex) '/home/username/Project'
 
 # kronos copy "origin_data" dir to "data_dir"
 # The path of the original data directory in the remote server
@@ -17,8 +17,8 @@ origin_data: '' # ex) '/home/username/Project/data/mnist_data'
 data_dir: '' # ex) 'data/'
 
 # If you want to fix server and GPU number you use, please specify them
-fix_server: '' # ex) 'bacchus'
-fix_gpu: [] # ex) [0, 1]
+fix_server: 'bacchus' # ex) 'bacchus'
+fix_gpu: [3] # ex) [0, 1]
 
 # ssh config path
-ssh_config_path: '' # ex) '~/.ssh/config'
+ssh_config_path: '~/.ssh/config' # ex) '~/.ssh/config'
