@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         software-properties-common \
         unzip \
+        nvidia-cuda-toolkit \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
