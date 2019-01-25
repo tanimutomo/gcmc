@@ -45,7 +45,9 @@ ADD . /app
 
 RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements.txt
 
-# RUN PATH=/usr/local/cuda/bin:${PATH} && \
-#     CPATH=/usr/local/cuda/include:${CPATH} && \
-#     ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt
+ENV PATH /usr/local/cuda/bin:$PATH
+ENV CPATH /usr/local/cuda/include:$CPATH
+RUN echo $PATH
+RUN echo $CPATH
+
 RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt

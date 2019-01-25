@@ -12,6 +12,7 @@ def main():
     drop_prob = 0.7
     epochs = 1000
     lr = 0.02
+    weight_decay = 0
     ster = 1e-3
 
     root = 'data/ml-100k'
@@ -33,7 +34,7 @@ def main():
         random_init
         ).to(device)
 
-    trainer = Trainer(model, dataset, data, calc_rmse, epochs, lr)
+    trainer = Trainer(model, dataset, data, calc_rmse, epochs, lr, weight_decay)
     trainer.iterate()
 
 

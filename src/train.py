@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Trainer:
-    def __init__(self, model, dataset, data, calc_rmse, epochs, lr):
+    def __init__(self, model, dataset, data, calc_rmse, epochs, lr, weight_decay):
         self.model = model
         self.dataset = dataset
         self.data = data
@@ -11,14 +11,15 @@ class Trainer:
 
         self.epochs = epochs
         self.lr = lr
+        self.weight_decay = weight_decay
 
         self.train_setting()
 
 
     def train_setting(self):
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(
-                self.model.parameters(), lr=self.lr, weight_decay=0.005)
+        self.optimizer = torch.optim.Adam(self.model.parameters(),
+                lr=self.lr, weight_decay=self.weight_decay)
 
     def iterate(self):
         for epoch in range(self.epochs):
