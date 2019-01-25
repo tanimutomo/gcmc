@@ -1,42 +1,57 @@
 import torch
+from comet_ml import Experiment
 
 from src.dataset import MCDataset
 from src.model import GAE
 from src.train import Trainer
-from src.utils import calc_rmse, random_init
+from src.utils import calc_rmse, random_init, AverageMeter
 
 
-def main():
-    hidden_size = [500, 75]
-    num_basis = 2
-    drop_prob = 0.7
-    epochs = 1000
-    lr = 0.02
-    weight_decay = 0
-    ster = 1e-3
-
-    root = 'data/ml-100k'
-    name = 'ml-100k'
+def main(params, comet=False):
+    if comet:
+        experiment = Experiment(api_key="xK18bJy5xiPuPf9Dptr43ZuMk",
+                        project_name="gcmc-ml100k", workspace="tanimutomo")
+        experiment.log_multiple_params(params)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = MCDataset(root, name)
+    dataset = MCDataset(params['root'], params['dataset_name'])
     data = dataset[0].to(device)
 
     model = GAE(
         dataset.num_nodes,
-        hidden_size[0],
-        hidden_size[1],
-        num_basis,
+        params['hidden_size'][0],
+        params['hidden_size'][1],
+        params['num_basis'],
         dataset.num_relations,
         int(data.num_users),
-        drop_prob,
-        ster,
+        params['drop_prob'],
+        params['ster'],
         random_init
         ).to(device)
 
-    trainer = Trainer(model, dataset, data, calc_rmse, epochs, lr, weight_decay)
+    if comet:
+        trainer = Trainer(model, dataset, data, calc_rmse, params['epochs'],
+                params['lr'], params['weight_decay'], experiment)
+    else:
+        trainer = Trainer(model, dataset, data, calc_rmse,
+                params['epochs'], params['lr'], params['weight_decay'])
     trainer.iterate()
 
 
 if __name__ == '__main__':
-    main()
+    params = {
+            'epochs': 1000,
+            'lr': 0.01,
+            'weight_decay': 0,
+            'ster': 1e-3,
+            'drop_prob': 0.7,
+
+            'hidden_size': [500, 75],
+            'num_basis': 2,
+
+            'root': 'data/ml-100k',
+            'dataset_name': 'ml-100k'
+            }
+    main(params, comet=True)
+
+
