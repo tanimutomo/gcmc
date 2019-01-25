@@ -11,7 +11,7 @@ def main():
     num_basis = 2
     drop_prob = 0.7
     epochs = 1000
-    lr = 0.01
+    lr = 0.02
     ster = 1e-3
 
     root = 'data/ml-100k'
