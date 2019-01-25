@@ -10,7 +10,6 @@ from torch_scatter import scatter_add
 from torch_geometric.data import InMemoryDataset, Data, download_url, extract_zip
 from torch_geometric.utils import one_hot
 
-# from utils import extract_zip
 
 class MCDataset(InMemoryDataset):
     def __init__(self, root, name, transform=None, pre_transform=None):
@@ -18,7 +17,6 @@ class MCDataset(InMemoryDataset):
         super(MCDataset, self).__init__(root, transform, pre_transform)
         # processed_path[0]は処理された後のデータで，process methodで定義される
         self.data, self.slices = torch.load(self.processed_paths[0])
-        # self.test_data, self.test_slices = torch.load(self.processed_paths[1])
         
     @property
     def num_relations(self):
@@ -50,8 +48,6 @@ class MCDataset(InMemoryDataset):
         
     def process(self):
         train_csv, test_csv = self.raw_paths
-        # self.proc_train_info, proc_train_data = self.preprocess(train_csv)
-        # self.proc_test_info, proc_test_data = self.preprocess(test_csv)
         train_df, train_nums = self.create_df(train_csv)
         test_df, test_nums = self.create_df(test_csv)
 
@@ -81,20 +77,6 @@ class MCDataset(InMemoryDataset):
 
         edge_norm = (1 / edge_norm.to(torch.float))
 
-        # return [
-        #         {
-        #             'num_users': num_users, 
-        #             'num_items': num_items,
-        #             'num_nodes': num_nodes,
-        #             'num_edges': num_edges
-        #         },
-        #         {
-        #             'x': x,
-        #             'edge_index': edge_index,
-        #             'edge_type': edge_type,
-        #             'edge_norm': edge_norm
-        #         }
-        #         ]
 
         data = Data(x=x, edge_index=edge_index)
         data.edge_type = edge_type
@@ -108,15 +90,6 @@ class MCDataset(InMemoryDataset):
         
         data, slices = self.collate([data])
         torch.save((data, slices), self.processed_paths[0])
-
-
-        # test_data = Data(x=proc_test_data['x'], 
-        #         edge_index=proc_test_data['edge_index'])
-        # test_data.edge_type = proc_test_data['edge_type']
-        # test_data.edge_norm = proc_test_data['edge_norm']
-        # 
-        # test_data, test_slices = self.collate([test_data])
-        # torch.save((test_data, test_slices), self.processed_paths[1])
 
     
     def create_df(self, csv_path):

@@ -7,7 +7,6 @@ class Trainer:
         self.model = model
         self.dataset = dataset
         self.data = data
-        # self.device = device
         self.calc_rmse = calc_rmse
 
         self.epochs = epochs
@@ -41,7 +40,6 @@ class Trainer:
                 self.data.edge_type, self.data.edge_norm
                 )
         loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
-        # loss = F.nll_loss(out[self.data.train_idx], self.data.train_gt)
         loss.backward()
         self.optimizer.step()
 
@@ -56,9 +54,6 @@ class Trainer:
         # else:
         #     return loss, None
 
-        # print('model grad: ', list(self.model.parameters())[0].grad)
-        # print(self.model.bidec.basis_matrix.grad)
-        # print(self.model.bidec.coefs[2].grad)
 
     def test(self):
         self.model.eval()

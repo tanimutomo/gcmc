@@ -18,11 +18,8 @@ def calc_rmse(pred, gt):
         expected_pred += pred[:, relation] * (relation + 1)
 
     rmse = (gt.to(torch.float) + 1) - expected_pred
-    # print(rmse)
     rmse = torch.pow(rmse, 2)
-    # print(rmse)
     rmse = torch.pow(torch.sum(rmse) / gt.shape[0], 0.5)
-    # print(rmse)
 
     return rmse
 

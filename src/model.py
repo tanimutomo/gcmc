@@ -56,15 +56,9 @@ class RGCLayer(MessagePassing):
         self.relu = nn.ReLU()
 
         self.reset_parameters()
-        # self.ord_basis = nn.Parameter(torch.Tensor(num_relations, 1, in_c * out_c))
 
 
     def reset_parameters(self):
-        # self.ord_basis = nn.ParameterList()
-        # size = self.in_c * self.out_c
-        # for basis in self.ord_basis:
-        #     basis = uniform(size, basis)
-        #     self.ord_basis.append(basis)
         for basis in self.ord_basis:
             basis = self.weight_init(self.ster, basis)
 
@@ -84,7 +78,6 @@ class RGCLayer(MessagePassing):
         weight = self.node_dropout(weight)
         index = edge_type * self.in_c + x_j
         out = weight[index]
-        # out = self.relu(out)
 
         return out if edge_norm is None else out * edge_norm.reshape(-1, 1)
 
@@ -96,16 +89,12 @@ class RGCLayer(MessagePassing):
 
     def node_dropout(self, weight):
         drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
-        # drop_mask = torch.floor(drop_mask).type(torch.uint8)
         drop_mask = torch.floor(drop_mask).type(torch.float)
         drop_mask = torch.cat([drop_mask 
             for r in range(self.num_relations)], 0).unsqueeze(1)
 
         drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
 
-
-        # weight = torch.where(drop_mask, weight, 
-        #         torch.tensor(0, dtype=weight.dtype))
         assert weight.shape == drop_mask.shape
         weight = weight * drop_mask
 
@@ -121,13 +110,11 @@ class DenseLayer(nn.Module):
 
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
-        # print(num_user, num_nodes)
         self.bn_u = nn.BatchNorm1d(num_user)
         self.bn_i = nn.BatchNorm1d(num_nodes - num_user)
         self.relu = nn.ReLU()
 
     def forward(self, u_features, i_features):
-        # print(u_features.shape, i_features.shape)
         u_features = self.dropout(u_features)
         u_features = self.fc(u_features)
         u_features = self.bn_u(
@@ -154,20 +141,13 @@ class BiDecoder(nn.Module):
 
         self.basis_matrix = nn.Parameter(
                 torch.Tensor(num_basis, feature_dim * feature_dim))
-        # self.coefs = nn.Parameter(torch.Tensor(num_relations, num_basis))
-        # basis_matrix = [nn.Parameter(torch.Tensor(
-        #     feature_dim * feature_dim)) for b in range(num_basis)]
         coefs = [nn.Parameter(torch.Tensor(num_basis)
             ) for b in range(num_relations)]
         self.coefs = nn.ParameterList(coefs)
-        # self.basis_matrix = nn.ParameterList(basis_matrix)
-        # self.log_softmax = nn.LogSoftmax(dim=1)
 
         self.reset_parameters()
 
     def reset_parameters(self):
-        # size_basis = self.num_basis * self.feature_dim
-        # size_coef = self.num_basis * self.num_relations
         self.weight_init(self.ster, self.basis_matrix)
         for coef in self.coefs:
             self.weight_init(self.ster, coef)
@@ -184,8 +164,6 @@ class BiDecoder(nn.Module):
                     u_features, q_matrix, i_features.t()).unsqueeze(-1)),dim=2)
 
         out = out.view(u_features.shape[0] * i_features.shape[0], -1)
-        # out = self.log_softmax(out)
-        # out = F.log_softmax(out, dim=1)
 
         return out
 
@@ -198,15 +176,8 @@ if __name__ == '__main__':
     drop_prob = 0.7
     gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, drop_prob)
     bidec = BiDecoder(out_c, num_basis, num_relations)
-    # print(gcenc.rgc_layer)
     rgc = RGCLayer(in_c, hid_c, num_relations, drop_prob)
     dense = DenseLayer(in_c, out_c, drop_prob)
-    # print(rgc)
-    # print(dense)
-    # print(bidec)
-    # print(rgc.named_parameters())
-    # print(dense.named_parameters())
-    # print(bidec.named_parameters())
 
     gae = GAE(in_c, hid_c, out_c, num_basis, num_relations, drop_prob)
     print(gae.parameters())
