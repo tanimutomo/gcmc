@@ -46,8 +46,9 @@ ADD . /app
 RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements.txt
 
 ENV PATH /usr/local/cuda/bin:$PATH
-ENV CPATH /usr/local/cuda/include:$CPATH
+ENV CPATH /usr/local/cuda/include
 RUN echo $PATH
 RUN echo $CPATH
+RUN nvcc --version
 
 RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt
