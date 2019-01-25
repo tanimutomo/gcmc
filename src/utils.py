@@ -7,9 +7,11 @@ def uniform(size, tensor):
     if tensor is not None:
         tensor.data.uniform_(-stdv, stdv)
 
+
 def random_init(ster, tensor):
     if tensor is not None:
         tensor.data.uniform_(-ster, ster)
+
 
 def calc_rmse(pred, gt):
     pred = F.softmax(pred, dim=1)
@@ -24,4 +26,19 @@ def calc_rmse(pred, gt):
     return rmse
 
 
+class AverageMeter:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
         
