@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         software-properties-common \
         unzip \
-        nvidia-cuda-toolkit \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -46,6 +45,7 @@ ADD . /app
 
 RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements.txt
 
-RUN PATH=/usr/local/cuda/bin:${PATH} && \
-    CPATH=/usr/local/cuda/include:${CPATH} && \
-    ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt
+# RUN PATH=/usr/local/cuda/bin:${PATH} && \
+#     CPATH=/usr/local/cuda/include:${CPATH} && \
+#     ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt
+RUN ${PIP} install --trusted-host pypi.python.org -r gpu_requirements2.txt
