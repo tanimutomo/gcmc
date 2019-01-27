@@ -28,6 +28,10 @@ def main(params, comet=False):
         params['ster'],
         random_init,
         params['accum'],
+        params['rgc_bn'],
+        params['rgc_relu'],
+        params['dense_bn'],
+        params['dense_relu']
         ).to(device)
 
     if comet:
@@ -47,6 +51,10 @@ if __name__ == '__main__':
             'ster': 1e-3,
             'drop_prob': 0.7,
             'accum': 'stack',
+            'rgc_bn': True,
+            'rgc_relu': True,
+            'dense_bn': True,
+            'dense_relu': False,
 
             'hidden_size': [500, 75],
             'num_basis': 2,
@@ -54,6 +62,6 @@ if __name__ == '__main__':
             'root': 'data/ml-100k',
             'dataset_name': 'ml-100k'
             }
-    # main(params, comet=True)
-    main(params)
+    main(params, comet=True)
+    # main(params)
 
