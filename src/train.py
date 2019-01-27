@@ -39,11 +39,11 @@ class Trainer:
             #     self.summary(epoch, loss)
             if self.experiment is not None:
                 metrics = {
-                        'train_loss': train_loss,
+                        'loss': loss,
                         'train_rmse': train_rmse,
                         'test_rmse': test_rmse,
                         }
-                self.experiment.log_multiple_metrics(metrics, step=epoch)
+                self.experiment.log_metrics(metrics, step=epoch)
 
         print('END TRAINING')
 
@@ -84,12 +84,20 @@ class Trainer:
 
 
     def summary(self, epoch, loss, train_rmse=None, test_rmse=None):
+        # min_loss = {'value': 1e+10, 'epoch': 0}
+        # min_train_rmse = {'value': 1e+10, 'epoch': 0}
+        # min_test_rmse = {'value': 1e+10, 'epoch': 0}
+        # for min_metric in list(min_loss, min_train_rmse, min_test_rmse):
+        #     if min_metric['value'] < loss:
+        #         min_metric['value'] = loss
+        #         min_metric['epoch'] = epoch
+
         if test_rmse is None:
-            print('[ Epoch: {}/{} | Loss: {} ]'.format(
+            print('[ Epoch: {:>4}/{} | Loss: {:.6f} ]'.format(
                 epoch, self.epochs, loss))
         else:
             # print('')
-            print('[ Epoch: {}/{} | Loss: {} | RMSE: {} | Test RMSE: {} ]'.format(
+            print('[ Epoch: {:>4}/{} | Loss: {:.6f} | RMSE: {:.6f} | Test RMSE: {:.6f} ]'.format(
                 epoch, self.epochs, loss, train_rmse, test_rmse))
             # print('')
             
