@@ -6,7 +6,8 @@ from src.utils import stack
 
 
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, ster, weight_init, accum):
+    def __init__(self, in_c, out_c, num_relations, drop_prob, ster,
+            weight_init, accum, bn, relu):
         super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
@@ -15,6 +16,8 @@ class RGCLayer(MessagePassing):
         self.ster = ster
         self.weight_init = weight_init
         self.accum = accum
+        self.bn = bn
+        self.relu = relu
         
         ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
         self.ord_basis = nn.ParameterList(ord_basis)
@@ -88,9 +91,11 @@ class RGCLayer(MessagePassing):
 
     def update(self, aggr_out):
         # aggr_out has shape [N, out_channles]
-        aggr_out = self.bn(aggr_out.unsqueeze(0))
-        aggr_out = self.relu(aggr_out)
-        return aggr_out.squeeze(0)
+        if self.bn:
+            aggr_out = self.bn(aggr_out.unsqueeze(0)).squeeze(0)
+        if self.relu:
+            aggr_out = self.relu(aggr_out)
+        return aggr_out
 
     def node_dropout(self, weight):
         drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
@@ -108,10 +113,13 @@ class RGCLayer(MessagePassing):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, num_nodes, num_user, weight_init, accum, bias=False):
+    def __init__(self, in_c, out_c, num_relations, drop_prob, num_nodes, num_user, 
+            weight_init, accum, bn, relu, bias=False):
         super(DenseLayer, self).__init__()
         self.num_nodes = num_nodes
         self.num_user = num_user
+        self.bn = bn
+        self.relu = relu
 
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
@@ -126,16 +134,19 @@ class DenseLayer(nn.Module):
     def forward(self, u_features, i_features):
         u_features = self.dropout(u_features)
         u_features = self.fc(u_features)
-        print(u_features.shape)
-        u_features = self.bn_u(
-                u_features.unsqueeze(0)).squeeze()
-        u_features = self.relu(u_features)
+        if self.bn:
+            u_features = self.bn_u(
+                    u_features.unsqueeze(0)).squeeze()
+        if self.relu:
+            u_features = self.relu(u_features)
 
         i_features = self.dropout(i_features)
         i_features = self.fc(i_features)
-        i_features = self.bn_i(
-                i_features.unsqueeze(0)).squeeze()
-        i_features = self.relu(i_features)
+        if self.bn:
+            i_features = self.bn_i(
+                    i_features.unsqueeze(0)).squeeze()
+        if self.relu:
+            i_features = self.relu(i_features)
 
         return u_features, i_features
 
