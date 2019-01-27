@@ -8,3 +8,4 @@ services:
       context: .
       dockerfile: gpu.Dockerfile
     image: tf_gpu_sample
+    container_name: gcmc
