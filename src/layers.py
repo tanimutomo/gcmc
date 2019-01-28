@@ -28,12 +28,12 @@ class RGCLayer(MessagePassing):
         else:
             self.bn = nn.BatchNorm1d(self.in_c)
 
-        self.reset_parameters()
+        self.reset_parameters(weight_init)
 
 
-    def reset_parameters(self):
+    def reset_parameters(self, weight_init):
         for basis in self.ord_basis:
-            basis = self.weight_init(self.ster, basis)
+            weight_init(basis, self.in_c, self.out_c)
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
         return self.propagate(self.accum, edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
@@ -120,6 +120,7 @@ class DenseLayer(nn.Module):
         self.num_user = num_user
         self.bn = bn
         self.relu = relu
+        self.weight_init = weight_init
 
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
@@ -130,6 +131,11 @@ class DenseLayer(nn.Module):
             self.bn_u = nn.BatchNorm1d(num_user)
             self.bn_i = nn.BatchNorm1d(num_nodes - num_user)
         self.relu = nn.ReLU()
+
+        self.reset_parameters(weight_init)
+
+    def reset_parameters(self, weight_init):
+        weight_init(self.fc, self.in_c, self.out_c)
 
     def forward(self, u_features, i_features):
         u_features = self.dropout(u_features)
