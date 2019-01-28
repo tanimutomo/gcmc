@@ -64,7 +64,6 @@ class BiDecoder(nn.Module):
         super(BiDecoder, self).__init__()
         self.num_basis = num_basis
         self.num_relations = num_relations
-        self.weight_init = weight_init
         self.feature_dim = feature_dim
         self.ster = ster
         self.accum = accum
@@ -75,12 +74,12 @@ class BiDecoder(nn.Module):
             ) for b in range(num_relations)]
         self.coefs = nn.ParameterList(coefs)
 
-        self.reset_parameters()
+        self.reset_parameters(weight_init)
 
-    def reset_parameters(self):
-        self.weight_init(self.ster, self.basis_matrix)
+    def reset_parameters(self, weight_init):
+        weight_init(self.basis_matrix, self.feature_dim, self.feature_dim)
         for coef in self.coefs:
-            self.weight_init(self.ster, coef)
+            weight_init(coef, self.num_basis, self.num_relations)
 
     def forward(self, u_features, i_features):
         if self.accum == 'stack':

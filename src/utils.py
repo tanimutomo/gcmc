@@ -20,9 +20,10 @@ def uniform(size, tensor):
         tensor.data.uniform_(-stdv, stdv)
 
 
-def random_init(ster, tensor):
+def random_init(tensor, in_dim, out_dim):
+    stdv = 6.0 / (in_dim + out_dim)
     if tensor is not None:
-        tensor.data.uniform_(-ster, ster)
+        tensor.data.uniform_(-stdv, stdv)
 
 
 def calc_rmse(pred, gt):
