@@ -116,6 +116,8 @@ class DenseLayer(nn.Module):
     def __init__(self, in_c, out_c, num_relations, drop_prob, num_nodes, num_user, 
             weight_init, accum, bn, relu, bias=False):
         super(DenseLayer, self).__init__()
+        # self.in_c = in_c
+        # self.out_c = out_c
         self.num_nodes = num_nodes
         self.num_user = num_user
         self.bn = bn
@@ -132,10 +134,10 @@ class DenseLayer(nn.Module):
             self.bn_i = nn.BatchNorm1d(num_nodes - num_user)
         self.relu = nn.ReLU()
 
-        self.reset_parameters(weight_init)
+        # self.reset_parameters(weight_init)
 
-    def reset_parameters(self, weight_init):
-        weight_init(self.fc, self.in_c, self.out_c)
+    # def reset_parameters(self, weight_init):
+    #     weight_init(self.fc, self.in_c, self.out_c)
 
     def forward(self, u_features, i_features):
         u_features = self.dropout(u_features)
