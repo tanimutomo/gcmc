@@ -1,6 +1,7 @@
 import time
 import math
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 def stack(features, index, relations, dim_size):
@@ -21,10 +22,32 @@ def uniform(size, tensor):
 
 
 def random_init(tensor, in_dim, out_dim):
-    stdv = 6.0 / (in_dim + out_dim)
+    thresh = math.sqrt(6.0 / (in_dim + out_dim))
     if tensor is not None:
-        tensor.data.uniform_(-stdv, stdv)
+        try:
+            tensor.data.uniform_(-thresh, thresh)
+        except:
+            nn.init.uniform_(tensor, a=-thresh, b=thresh)
 
+
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform(m.weight)
+        # m.bias.data.fill_(0.01)
+        try:
+            truncated_normal(m.bias)
+        except:
+            pass
+
+def truncated_normal(tensor, mean=0, std=1):
+    tensor.data.fill_(std * 2)
+    with torch.no_grad():
+        while(True):
+            if tensor.max() >= std * 2:
+                tensor[tensor>=std * 2] = tensor[tensor>=std * 2].normal_(mean, std)
+                tensor.abs_()
+            else:
+                break
 
 def calc_rmse(pred, gt):
     pred = F.softmax(pred, dim=1)
