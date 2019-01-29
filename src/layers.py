@@ -6,14 +6,13 @@ from src.utils import stack
 
 
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, ster,
+    def __init__(self, in_c, out_c, num_relations, drop_prob, 
             weight_init, accum, bn, relu):
         super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
         self.num_relations = num_relations
         self.drop_prob = drop_prob
-        self.ster = ster
         self.weight_init = weight_init
         self.accum = accum
         self.bn = bn
