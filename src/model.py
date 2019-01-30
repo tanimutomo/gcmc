@@ -77,7 +77,8 @@ class BiDecoder(nn.Module):
         self.reset_parameters(weight_init)
 
     def reset_parameters(self, weight_init):
-        weight_init(self.basis_matrix, self.feature_dim, self.feature_dim)
+        # weight_init(self.basis_matrix, self.feature_dim, self.feature_dim)
+        nn.init.orthogonal_(self.basis_matrix)
         for coef in self.coefs:
             weight_init(coef, self.num_basis, self.num_relations)
 
@@ -90,8 +91,8 @@ class BiDecoder(nn.Module):
             num_users = u_features.shape[1]
             num_items = i_features.shape[1]
         else:
-            num_users = u_features[0]
-            num_items = i_features[0]
+            num_users = u_features.shape[0]
+            num_items = i_features.shape[0]
             
         for relation in range(self.num_relations):
             q_matrix = torch.sum(self.coefs[relation].unsqueeze(1) * self.basis_matrix, 0)
