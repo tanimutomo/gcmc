@@ -1,8 +1,46 @@
 import time
 import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.utils import scatter_
+
+def split_stack(features, index, relations, dim_size):
+    """
+    Official Stack accumulation function
+
+    Parameters
+    ----------
+    features : tensor (relation * num_nodes) x features
+        output of messge method in RGCLayer class
+    index : tensor (edges)
+        edge_index[0]
+    relations : teonsor(edges)
+        edge_type
+    dim_size : tensor(num_nodes)
+        input size (the number of nodes)
+
+    Return
+    ------
+    stacked_out : tensor(relation * nodes x out_dim)
+    """
+    out_dim = features.shape[0]
+    np_index = index.numpy()
+    np_relations = relations.numpy()
+    splited_features = torch.split(features, int(out_dim / 5), dim=1)
+
+    stacked_out = []
+    for r, feature in enumerate(splited_features):
+        relation_only_r = torch.from_numpy(np.where(np_relations==r)[0])
+        r_index = index[relation_only_r]
+        r_feature = feature[relation_only_r]
+        stacked_out.append(scatter_('add', r_feature, r_index, dim_size=dim_size))
+
+    stacked_out = torch.cat(stacked_out, 1)
+
+    return stacked_out
+
 
 def stack(features, index, relations, dim_size):
     """
