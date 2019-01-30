@@ -18,6 +18,7 @@ class RGCLayer(MessagePassing):
         self.bn = bn
         self.relu = relu
         
+        # ordinal basis matrices in_c * out_c = 2625 * 500
         ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
         self.ord_basis = nn.ParameterList(ord_basis)
         self.relu = nn.ReLU()
@@ -81,11 +82,17 @@ class RGCLayer(MessagePassing):
                 weight = torch.cat((weight, weight[-1] 
                     + self.ord_basis[relation]), 0)
 
+        # weight (R x (in_dim * out_dim)) reshape to (R * in_dim) x out_dim
+        # weight has all nodes features
         weight = weight.reshape(-1, self.out_c)
         weight = self.node_dropout(weight)
+        # index has target features index in weitht matrix
         index = edge_type * self.in_c + x_j
+        # this opration is that index(160000) specify the nodes idx in weight matrix
+        # for getting the features corresponding edge_index
         out = weight[index]
 
+        # out is edges(160000) x hidden(500)
         return out if edge_norm is None else out * edge_norm.reshape(-1, 1)
 
     def update(self, aggr_out):
