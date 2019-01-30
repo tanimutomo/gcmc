@@ -5,8 +5,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 def stack(features, index, relations, dim_size):
+    """
+    Stack accumulation function in RGCLayer.
+
+    Parameters
+    ----------
+    features : tensor (relation * num_nodes)
+        output of messge method in RGCLayer class
+    index : tensor (edges)
+        edge_index[0]
+    relations : teonsor(edges)
+        edge_type
+    dim_size : tensor(num_nodes)
+        input size (the number of nodes)
+
+    Return
+    ------
+    out : tensor(relation * nodes x out_dim)
+    """
     out = torch.zeros(dim_size * (torch.max(relations) + 1), features.shape[1])
-    start = time.time()
     tar_idx = relations * dim_size + index
     out[tar_idx] = features
     # for feature, idx, relation in zip(features, index, relations):
