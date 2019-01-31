@@ -54,7 +54,6 @@ class MCDataset(InMemoryDataset):
         train_idx, train_gt = self.create_gt_idx(train_df, train_nums)
         test_idx, test_gt = self.create_gt_idx(test_df, train_nums)
 
-        train_df['user_id'] = train_df['user_id']
         train_df['item_id'] = train_df['item_id'] + train_nums['user']
 
         x = torch.arange(train_nums['node'], dtype=torch.long)
