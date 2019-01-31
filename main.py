@@ -4,7 +4,7 @@ import torch
 from src.dataset import MCDataset
 from src.model import GAE
 from src.train import Trainer
-from src.utils import calc_rmse, random_init, AverageMeter
+from src.utils import calc_rmse, ster_uniform, random_init, init_xavier, init_uniform
 
 
 def main(params, comet=False):
@@ -25,14 +25,17 @@ def main(params, comet=False):
         dataset.num_relations,
         int(data.num_users),
         params['drop_prob'],
-        params['ster'],
         random_init,
+        # ster_uniform,
         params['accum'],
         params['rgc_bn'],
         params['rgc_relu'],
         params['dense_bn'],
-        params['dense_relu']
+        params['dense_relu'],
+        params['bidec_drop']
         ).to(device)
+    
+    model.apply(init_xavier)
 
     if comet:
         trainer = Trainer(model, dataset, data, calc_rmse, params['epochs'],
@@ -46,15 +49,15 @@ def main(params, comet=False):
 if __name__ == '__main__':
     params = {
             'epochs': 1000,
-            'lr': 0.01,
+            'lr': 0.02,
             'weight_decay': 0,
-            'ster': 1e-3,
             'drop_prob': 0.7,
-            'accum': 'stack',
-            'rgc_bn': True,
-            'rgc_relu': True,
-            'dense_bn': True,
+            'accum': 'split_stack',
+            'rgc_bn': False,
+            'rgc_relu': False,
+            'dense_bn': False,
             'dense_relu': False,
+            'bidec_drop': True,
 
             'hidden_size': [500, 75],
             'num_basis': 2,
