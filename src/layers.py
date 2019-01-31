@@ -37,7 +37,7 @@ class RGCLayer(MessagePassing):
 
     def reset_parameters(self, weight_init):
         if self.accum == 'split_stack':
-            weight_init(self.ord_basis, self.in_c * self.num_relations, self.out_c)
+            weight_init(self.ord_basis, self.in_c, self.out_c)
         else:
             for basis in self.ord_basis:
                 weight_init(basis, self.in_c, self.out_c)
