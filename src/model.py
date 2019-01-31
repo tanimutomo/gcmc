@@ -6,11 +6,11 @@ from src.layers import RGCLayer, DenseLayer
 class GAE(nn.Module):
     def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, 
             num_user, drop_prob, weight_init, accum,
-            rgc_bn, rgc_relu, dense_bn, dense_relu):
+            rgc_bn, rgc_relu, dense_bn, dense_relu, bidec_drop):
         super(GAE, self).__init__()
         self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, 
                 drop_prob, weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu)
-        self.bidec = BiDecoder(out_c, num_basis, num_relations, drop_prob, weight_init, accum)
+        self.bidec = BiDecoder(out_c, num_basis, num_relations, drop_prob, weight_init, accum, bidec_drop)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
@@ -60,12 +60,13 @@ class GCEncoder(nn.Module):
 
 
 class BiDecoder(nn.Module):
-    def __init__(self, feature_dim, num_basis, num_relations, drop_prob, weight_init, accum):
+    def __init__(self, feature_dim, num_basis, num_relations, drop_prob, weight_init, accum, apply_drop):
         super(BiDecoder, self).__init__()
         self.num_basis = num_basis
         self.num_relations = num_relations
         self.feature_dim = feature_dim
         self.accum = accum
+        self.apply_drop = apply_drop
 
         self.dropout = nn.Dropout(drop_prob)
         self.basis_matrix = nn.Parameter(
@@ -83,8 +84,9 @@ class BiDecoder(nn.Module):
             weight_init(coef, self.num_basis, self.num_relations)
 
     def forward(self, u_features, i_features):
-        u_features = self.dropout(u_features)
-        i_features = self.dropout(i_features)
+        if self.apply_drop:
+            u_features = self.dropout(u_features)
+            i_features = self.dropout(i_features)
         if self.accum == 'stack':
             u_features = u_features.reshape(self.num_relations, -1, self.feature_dim)
             i_features = i_features.reshape(self.num_relations, -1, self.feature_dim)
