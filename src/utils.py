@@ -36,6 +36,7 @@ def split_stack(features, index, relations, dim_size):
         r_index = index[relation_only_r]
         r_feature = feature[relation_only_r]
         stacked_out.append(scatter_('add', r_feature, r_index, dim_size=dim_size))
+        # stacked_out.append(scatter_('add', feature, index, dim_size=dim_size))
 
     stacked_out = torch.cat(stacked_out, 1)
 
@@ -70,10 +71,9 @@ def stack(features, index, relations, dim_size):
     return out
     
 
-def uniform(size, tensor):
-    stdv = 1.0 / math.sqrt(size)
+def ster_uniform(tensor, in_dim, out_dim):
     if tensor is not None:
-        tensor.data.uniform_(-stdv, stdv)
+        tensor.data.uniform_(-0.001, 0.001)
 
 
 def random_init(tensor, in_dim, out_dim):
@@ -85,10 +85,17 @@ def random_init(tensor, in_dim, out_dim):
             nn.init.uniform_(tensor, a=-thresh, b=thresh)
 
 
-def init_weights(m):
+def init_xavier(m):
     if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform(m.weight)
-        # m.bias.data.fill_(0.01)
+        torch.nn.init.xavier_uniform_(m.weight)
+        try:
+            truncated_normal(m.bias)
+        except:
+            pass
+
+def init_uniform(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.uniform_(m.weight)
         try:
             truncated_normal(m.bias)
         except:
