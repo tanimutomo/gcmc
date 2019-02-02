@@ -27,7 +27,7 @@ class GCEncoder(nn.Module):
         self.num_user = num_user
         self.accum = accum
 
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob,  
+        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, num_user, drop_prob,  
                 weight_init, accum, rgc_bn, rgc_relu)
         self.dense_layer = DenseLayer(hid_c, out_c, num_relations, drop_prob, in_c,
                 num_user, weight_init, accum, dense_bn, dense_relu)

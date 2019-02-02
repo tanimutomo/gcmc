@@ -49,15 +49,15 @@ def main(params, comet=False):
 if __name__ == '__main__':
     params = {
             'epochs': 1000,
-            'lr': 0.02,
+            'lr': 0.01,
             'weight_decay': 0,
             'drop_prob': 0.7,
             'accum': 'split_stack',
-            'rgc_bn': False,
-            'rgc_relu': False,
-            'dense_bn': False,
-            'dense_relu': False,
-            'bidec_drop': True,
+            'rgc_bn': True,
+            'rgc_relu': True,
+            'dense_bn': True,
+            'dense_relu': True,
+            'bidec_drop': False,
 
             'hidden_size': [500, 75],
             'num_basis': 2,
@@ -65,6 +65,6 @@ if __name__ == '__main__':
             'root': 'data/ml-100k',
             'dataset_name': 'ml-100k'
             }
-    main(params, comet=True)
-    # main(params)
+    # main(params, comet=True)
+    main(params)
 

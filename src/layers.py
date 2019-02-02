@@ -6,12 +6,14 @@ from src.utils import stack, split_stack
 
 
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, 
+    def __init__(self, in_c, out_c, num_relations, num_user, drop_prob, 
             weight_init, accum, bn, relu):
         super(RGCLayer, self).__init__()
         self.in_c = in_c
         self.out_c = out_c
         self.num_relations = num_relations
+        self.num_user = num_user
+        self.num_item = in_c - num_user
         self.drop_prob = drop_prob
         self.weight_init = weight_init
         self.accum = accum
@@ -20,7 +22,10 @@ class RGCLayer(MessagePassing):
         
         if accum == 'split_stack':
             # each 100 dimention has each realtion node features
-            self.ord_basis = nn.Parameter(torch.Tensor(5, in_c * out_c))
+            # user-item-weight-sharing
+            self.base_weight = nn.Parameter(torch.Tensor(
+                max(self.num_user, self.num_item), out_c))
+            self.dropout = nn.Dropout(drop_prob)
         else:
             # ordinal basis matrices in_c * out_c = 2625 * 500
             ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
@@ -37,7 +42,7 @@ class RGCLayer(MessagePassing):
 
     def reset_parameters(self, weight_init):
         if self.accum == 'split_stack':
-            weight_init(self.ord_basis, self.in_c, self.out_c)
+            weight_init(self.base_weight, self.in_c, self.out_c)
         else:
             for basis in self.ord_basis:
                 weight_init(basis, self.in_c, self.out_c)
@@ -87,7 +92,11 @@ class RGCLayer(MessagePassing):
     def message(self, x_j, edge_type, edge_norm):
         # create weight using ordinal weight sharing
         if self.accum == 'split_stack':
-            weight = self.ord_basis
+            weight = torch.cat((self.base_weight[:self.num_user],
+                self.base_weight[:self.num_item]), 0)
+            # weight = self.dropout(weight)
+            index = x_j
+            
         else:
             for relation in range(self.num_relations):
                 if relation == 0:
@@ -96,14 +105,15 @@ class RGCLayer(MessagePassing):
                     weight = torch.cat((weight, weight[-1] 
                         + self.ord_basis[relation]), 0)
 
-        # weight (R x (in_dim * out_dim)) reshape to (R * in_dim) x out_dim
-        # weight has all nodes features
-        weight = weight.reshape(-1, self.out_c)
+            # weight (R x (in_dim * out_dim)) reshape to (R * in_dim) x out_dim
+            # weight has all nodes features
+            weight = weight.reshape(-1, self.out_c)
+            # index has target features index in weitht matrix
+            index = edge_type * self.in_c + x_j
+            # this opration is that index(160000) specify the nodes idx in weight matrix
+            # for getting the features corresponding edge_index
+
         weight = self.node_dropout(weight)
-        # index has target features index in weitht matrix
-        index = edge_type * self.in_c + x_j
-        # this opration is that index(160000) specify the nodes idx in weight matrix
-        # for getting the features corresponding edge_index
         out = weight[index]
 
         # out is edges(160000) x hidden(500)
@@ -120,8 +130,11 @@ class RGCLayer(MessagePassing):
     def node_dropout(self, weight):
         drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
         drop_mask = torch.floor(drop_mask).type(torch.float)
-        drop_mask = torch.cat([drop_mask 
-            for r in range(self.num_relations)], 0).unsqueeze(1)
+        if self.accum == 'split_stack':
+            drop_mask = drop_mask.unsqueeze(1)
+        else:
+            drop_mask = torch.cat([drop_mask 
+                for r in range(self.num_relations)], 0).unsqueeze(1)
 
         drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
 
