@@ -5,12 +5,12 @@ from src.layers import RGCLayer, DenseLayer
 
 class GAE(nn.Module):
     def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, 
-            num_user, drop_prob, ster, weight_init, accum,
-            rgc_bn, rgc_relu, dense_bn, dense_relu):
+            num_user, drop_prob, weight_init, accum,
+            rgc_bn, rgc_relu, dense_bn, dense_relu, bidec_drop):
         super(GAE, self).__init__()
         self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, 
-                drop_prob, ster, weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu)
-        self.bidec = BiDecoder(out_c, num_basis, num_relations, ster, weight_init, accum)
+                drop_prob, weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu)
+        self.bidec = BiDecoder(out_c, num_basis, num_relations, drop_prob, weight_init, accum, bidec_drop)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
@@ -20,14 +20,14 @@ class GAE(nn.Module):
 
 
 class GCEncoder(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob, ster, 
+    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob,  
             weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu):
         super(GCEncoder, self).__init__()
         self.num_relations = num_relations
         self.num_user = num_user
         self.accum = accum
 
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, drop_prob, ster, 
+        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, num_user, drop_prob,  
                 weight_init, accum, rgc_bn, rgc_relu)
         self.dense_layer = DenseLayer(hid_c, out_c, num_relations, drop_prob, in_c,
                 num_user, weight_init, accum, dense_bn, dense_relu)
@@ -60,14 +60,15 @@ class GCEncoder(nn.Module):
 
 
 class BiDecoder(nn.Module):
-    def __init__(self, feature_dim, num_basis, num_relations, ster, weight_init, accum):
+    def __init__(self, feature_dim, num_basis, num_relations, drop_prob, weight_init, accum, apply_drop):
         super(BiDecoder, self).__init__()
         self.num_basis = num_basis
         self.num_relations = num_relations
         self.feature_dim = feature_dim
-        self.ster = ster
         self.accum = accum
+        self.apply_drop = apply_drop
 
+        self.dropout = nn.Dropout(drop_prob)
         self.basis_matrix = nn.Parameter(
                 torch.Tensor(num_basis, feature_dim * feature_dim))
         coefs = [nn.Parameter(torch.Tensor(num_basis)
@@ -77,19 +78,23 @@ class BiDecoder(nn.Module):
         self.reset_parameters(weight_init)
 
     def reset_parameters(self, weight_init):
-        weight_init(self.basis_matrix, self.feature_dim, self.feature_dim)
+        # weight_init(self.basis_matrix, self.feature_dim, self.feature_dim)
+        nn.init.orthogonal_(self.basis_matrix)
         for coef in self.coefs:
             weight_init(coef, self.num_basis, self.num_relations)
 
     def forward(self, u_features, i_features):
+        if self.apply_drop:
+            u_features = self.dropout(u_features)
+            i_features = self.dropout(i_features)
         if self.accum == 'stack':
             u_features = u_features.reshape(self.num_relations, -1, self.feature_dim)
             i_features = i_features.reshape(self.num_relations, -1, self.feature_dim)
             num_users = u_features.shape[1]
             num_items = i_features.shape[1]
         else:
-            num_users = u_features[0]
-            num_items = i_features[0]
+            num_users = u_features.shape[0]
+            num_items = i_features.shape[0]
             
         for relation in range(self.num_relations):
             q_matrix = torch.sum(self.coefs[relation].unsqueeze(1) * self.basis_matrix, 0)

@@ -4,7 +4,7 @@ import torch
 from src.dataset import MCDataset
 from src.model import GAE
 from src.train import Trainer
-from src.utils import calc_rmse, random_init, AverageMeter
+from src.utils import calc_rmse, ster_uniform, random_init, init_xavier, init_uniform
 
 
 def main(params, comet=False):
@@ -25,14 +25,17 @@ def main(params, comet=False):
         dataset.num_relations,
         int(data.num_users),
         params['drop_prob'],
-        params['ster'],
         random_init,
+        # ster_uniform,
         params['accum'],
         params['rgc_bn'],
         params['rgc_relu'],
         params['dense_bn'],
-        params['dense_relu']
+        params['dense_relu'],
+        params['bidec_drop']
         ).to(device)
+    
+    model.apply(init_xavier)
 
     if comet:
         trainer = Trainer(model, dataset, data, calc_rmse, params['epochs'],
@@ -48,13 +51,13 @@ if __name__ == '__main__':
             'epochs': 1000,
             'lr': 0.01,
             'weight_decay': 0,
-            'ster': 1e-3,
             'drop_prob': 0.7,
-            'accum': 'stack',
+            'accum': 'split_stack',
             'rgc_bn': True,
             'rgc_relu': True,
             'dense_bn': True,
-            'dense_relu': False,
+            'dense_relu': True,
+            'bidec_drop': False,
 
             'hidden_size': [500, 75],
             'num_basis': 2,
@@ -62,6 +65,6 @@ if __name__ == '__main__':
             'root': 'data/ml-100k',
             'dataset_name': 'ml-100k'
             }
-    main(params, comet=True)
-    # main(params)
+    # main(params, comet=True)
+    main(params)
 

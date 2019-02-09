@@ -17,8 +17,8 @@ origin_data: '' # ex) '/home/username/Project/data/mnist_data'
 data_dir: '' # ex) 'data/'
 
 # If you want to fix server and GPU number you use, please specify them
-fix_server: 'bacchus' # ex) 'bacchus'
-fix_gpu: [3] # ex) [0, 1]
+fix_server: 'diana' # ex) 'bacchus'
+fix_gpu: [0] # ex) [0, 1]
 
 # ssh config path
 ssh_config_path: '~/.ssh/config' # ex) '~/.ssh/config'
