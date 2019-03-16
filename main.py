@@ -18,7 +18,7 @@ def main(config, comet=False):
 
     # device and dataset setting
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = MCDataset(config['root'], config['dataset_name'])
+    dataset = MCDataset(config.root, config.dataset_name)
     data = dataset[0].to(device)
 
     # add some params to config
