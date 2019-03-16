@@ -5,7 +5,7 @@ This repository is **NOT** an official implementation of that paper.
 The official implementation is [this](https://github.com/riannevdberg/gc-mc) which is based on Tensorflow.
 
 ## Train and Test
-Default training dataset is MovieLens-100k.
+Default training dataset is MovieLens-100k which will be automatically downloaded in ./data/ when running main.py.
 ### Docker (Recommend)
 - Install docker and docker-compose (see docker official document)
 - Clone this repository
