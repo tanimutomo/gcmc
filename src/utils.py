@@ -6,6 +6,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.utils import scatter_
 
+
+class Config(dict):
+    def __init__(self, config):
+        self._conf = config
+ 
+    def __getattr__(self, name):
+        if self._conf.get(name) is not None:
+            return self._conf[name]
+
+        return None
+
+
 def split_stack(features, index, relations, dim_size):
     """
     Official Stack accumulation function

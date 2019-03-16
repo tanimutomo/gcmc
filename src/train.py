@@ -19,9 +19,6 @@ class Trainer:
 
 
     def train_setting(self):
-        # self.train_loss_meter = AverageMeter()
-        # self.train_rmse_meter = AverageMeter()
-        # self.test_rmse_meter = AverageMeter()
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(),
                 lr=self.lr, weight_decay=self.weight_decay)
@@ -29,14 +26,8 @@ class Trainer:
     def iterate(self):
         for epoch in range(self.epochs):
             loss, train_rmse = self.train(epoch)
-            # self.train_loss_meter.update(loss.item())
-            # self.train_rmse_meter.update(train_rmse.item())
-            # if epoch % 10 == 0:
             test_rmse = self.test()
-            # self.test_rmse_meter.update(test_rmse.item())
             self.summary(epoch, loss, train_rmse, test_rmse)
-            # else:
-            #     self.summary(epoch, loss)
             if self.experiment is not None:
                 metrics = {
                         'loss': loss,
@@ -59,16 +50,8 @@ class Trainer:
         loss.backward()
         self.optimizer.step()
 
-        # print('--------Parameter---------')
-        # for param in self.model.parameters():
-        #     print(param.grad)
-        # print('--------------------------')
-
-        # if epoch % 10 == 0:
         rmse = self.calc_rmse(out[self.data.train_idx], self.data.train_gt)
         return loss.item(), rmse.item()
-        # else:
-        #     return loss, None
 
 
     def test(self):
@@ -84,24 +67,11 @@ class Trainer:
 
 
     def summary(self, epoch, loss, train_rmse=None, test_rmse=None):
-        # min_loss = {'value': 1e+10, 'epoch': 0}
-        # min_train_rmse = {'value': 1e+10, 'epoch': 0}
-        # min_test_rmse = {'value': 1e+10, 'epoch': 0}
-        # for min_metric in list(min_loss, min_train_rmse, min_test_rmse):
-        #     if min_metric['value'] < loss:
-        #         min_metric['value'] = loss
-        #         min_metric['epoch'] = epoch
-
         if test_rmse is None:
             print('[ Epoch: {:>4}/{} | Loss: {:.6f} ]'.format(
                 epoch, self.epochs, loss))
         else:
-            # print('')
             print('[ Epoch: {:>4}/{} | Loss: {:.6f} | RMSE: {:.6f} | Test RMSE: {:.6f} ]'.format(
                 epoch, self.epochs, loss, train_rmse, test_rmse))
-            # print('')
             
         
-
-if __name__ == '__main__':
-    pass
