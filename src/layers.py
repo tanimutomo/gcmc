@@ -5,35 +5,37 @@ from torch_geometric.utils import scatter_
 from src.utils import stack, split_stack
 
 
+# First Layer of the Encoder (implemented by Pytorch Geometric)
+# Please the following repository for details.
+# https://github.com/rusty1s/pytorch_geometric
 class RGCLayer(MessagePassing):
-    def __init__(self, in_c, out_c, num_relations, num_user, drop_prob, 
-            weight_init, accum, bn, relu):
+    def __init__(self, config, weight_init):
         super(RGCLayer, self).__init__()
-        self.in_c = in_c
-        self.out_c = out_c
-        self.num_relations = num_relations
-        self.num_user = num_user
-        self.num_item = in_c - num_user
-        self.drop_prob = drop_prob
+        self.in_c = config.num_nodes
+        self.out_c = config.hidden_size[0]
+        self.num_relations = config.num_relations
+        self.num_users = config.num_users
+        self.num_item = config.num_nodes - config.num_users
+        self.drop_prob = config.drop_prob
         self.weight_init = weight_init
-        self.accum = accum
-        self.bn = bn
-        self.relu = relu
+        self.accum = config.accum
+        self.bn = config.rgc_bn
+        self.relu = config.rgc_relu
         
-        if accum == 'split_stack':
+        if config.accum == 'split_stack':
             # each 100 dimention has each realtion node features
             # user-item-weight-sharing
             self.base_weight = nn.Parameter(torch.Tensor(
-                max(self.num_user, self.num_item), out_c))
-            self.dropout = nn.Dropout(drop_prob)
+                max(self.num_users, self.num_item), self.out_c))
+            self.dropout = nn.Dropout(self.drop_prob)
         else:
             # ordinal basis matrices in_c * out_c = 2625 * 500
-            ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(num_relations)]
+            ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(self.num_relations)]
             self.ord_basis = nn.ParameterList(ord_basis)
         self.relu = nn.ReLU()
 
-        if accum == 'stack':
-            self.bn = nn.BatchNorm1d(self.in_c * num_relations)
+        if config.accum == 'stack':
+            self.bn = nn.BatchNorm1d(self.in_c * config.num_relations)
         else:
             self.bn = nn.BatchNorm1d(self.in_c)
 
@@ -92,7 +94,7 @@ class RGCLayer(MessagePassing):
     def message(self, x_j, edge_type, edge_norm):
         # create weight using ordinal weight sharing
         if self.accum == 'split_stack':
-            weight = torch.cat((self.base_weight[:self.num_user],
+            weight = torch.cat((self.base_weight[:self.num_users],
                 self.base_weight[:self.num_item]), 0)
             # weight = self.dropout(weight)
             index = x_j
@@ -145,26 +147,25 @@ class RGCLayer(MessagePassing):
 
 
 
+# Second Layer of the Encoder
 class DenseLayer(nn.Module):
-    def __init__(self, in_c, out_c, num_relations, drop_prob, num_nodes, num_user, 
-            weight_init, accum, bn, relu, bias=False):
+    def __init__(self, config, weight_init, bias=False):
         super(DenseLayer, self).__init__()
-        # self.in_c = in_c
-        # self.out_c = out_c
-        self.num_nodes = num_nodes
-        self.num_user = num_user
-        self.bn = bn
-        self.relu = relu
+        in_c = config.hidden_size[0]
+        out_c = config.hidden_size[1]
+        self.bn = config.dense_bn
+        self.relu = config.dense_relu
         self.weight_init = weight_init
 
-        self.dropout = nn.Dropout(drop_prob)
+        self.dropout = nn.Dropout(config.drop_prob)
         self.fc = nn.Linear(in_c, out_c, bias=bias)
-        if accum == 'stack':
-            self.bn_u = nn.BatchNorm1d(num_user * num_relations)
-            self.bn_i = nn.BatchNorm1d((num_nodes - num_user) * num_relations)
+        if config.accum == 'stack':
+            self.bn_u = nn.BatchNorm1d(config.num_users * config.num_relations)
+            self.bn_i = nn.BatchNorm1d((
+                config.num_nodes - config.num_users) * config.num_relations)
         else:
-            self.bn_u = nn.BatchNorm1d(num_user)
-            self.bn_i = nn.BatchNorm1d(num_nodes - num_user)
+            self.bn_u = nn.BatchNorm1d(config.num_users)
+            self.bn_i = nn.BatchNorm1d(config.num_nodes - config.num_users)
         self.relu = nn.ReLU()
 
         # self.reset_parameters(weight_init)

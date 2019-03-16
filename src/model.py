@@ -3,14 +3,12 @@ import torch.nn as nn
 from src.layers import RGCLayer, DenseLayer
 
 
+# Main Model
 class GAE(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_basis, num_relations, 
-            num_user, drop_prob, weight_init, accum,
-            rgc_bn, rgc_relu, dense_bn, dense_relu, bidec_drop):
+    def __init__(self, config, weight_init):
         super(GAE, self).__init__()
-        self.gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, num_user, 
-                drop_prob, weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu)
-        self.bidec = BiDecoder(out_c, num_basis, num_relations, drop_prob, weight_init, accum, bidec_drop)
+        self.gcenc = GCEncoder(config, weight_init)
+        self.bidec = BiDecoder(config, weight_init)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
@@ -19,18 +17,16 @@ class GAE(nn.Module):
         return adj_matrices
 
 
+# Encoder (will be separated to two layers(RGC and Dense))
 class GCEncoder(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, num_relations, num_user, drop_prob,  
-            weight_init, accum, rgc_bn, rgc_relu, dense_bn, dense_relu):
+    def __init__(self, config, weight_init):
         super(GCEncoder, self).__init__()
-        self.num_relations = num_relations
-        self.num_user = num_user
-        self.accum = accum
+        self.num_relations = config.num_relations
+        self.num_users = config.num_users
+        self.accum = config.accum
 
-        self.rgc_layer = RGCLayer(in_c, hid_c, num_relations, num_user, drop_prob,  
-                weight_init, accum, rgc_bn, rgc_relu)
-        self.dense_layer = DenseLayer(hid_c, out_c, num_relations, drop_prob, in_c,
-                num_user, weight_init, accum, dense_bn, dense_relu)
+        self.rgc_layer = RGCLayer(config, weight_init)
+        self.dense_layer = DenseLayer(config, weight_init)
 
     def forward(self, x, edge_index, edge_type, edge_norm):
         features = self.rgc_layer(x, edge_index, edge_type, edge_norm)
@@ -44,35 +40,36 @@ class GCEncoder(nn.Module):
             num_nodes = int(features.shape[0] / self.num_relations)
             for r in range(self.num_relations):
                 if r == 0:
-                    u_features = features[:self.num_user]
-                    i_features = features[self.num_user: (r+1) * num_nodes]
+                    u_features = features[:self.num_users]
+                    i_features = features[self.num_users: (r+1) * num_nodes]
                 else:
                     u_features = torch.cat((u_features,
-                        features[r * num_nodes: r * num_nodes + self.num_user]), dim=0)
+                        features[r * num_nodes: r * num_nodes + self.num_users]), dim=0)
                     i_features = torch.cat((i_features,
-                        features[r * num_nodes + self.num_user: (r+1) * num_nodes]), dim=0)
+                        features[r * num_nodes + self.num_users: (r+1) * num_nodes]), dim=0)
 
         else:
-            u_features = features[:self.num_user]
-            i_features = features[self.num_user:]
+            u_features = features[:self.num_users]
+            i_features = features[self.num_users:]
 
         return u_features, i_features
 
 
+# Decoder
 class BiDecoder(nn.Module):
-    def __init__(self, feature_dim, num_basis, num_relations, drop_prob, weight_init, accum, apply_drop):
+    def __init__(self, config, weight_init):
         super(BiDecoder, self).__init__()
-        self.num_basis = num_basis
-        self.num_relations = num_relations
-        self.feature_dim = feature_dim
-        self.accum = accum
-        self.apply_drop = apply_drop
+        self.num_basis = config.num_basis
+        self.num_relations = config.num_relations
+        self.feature_dim = config.hidden_size[1]
+        self.accum = config.accum
+        self.apply_drop = config.bidec_drop
 
-        self.dropout = nn.Dropout(drop_prob)
+        self.dropout = nn.Dropout(config.drop_prob)
         self.basis_matrix = nn.Parameter(
-                torch.Tensor(num_basis, feature_dim * feature_dim))
-        coefs = [nn.Parameter(torch.Tensor(num_basis)
-            ) for b in range(num_relations)]
+                torch.Tensor(config.num_basis, self.feature_dim * self.feature_dim))
+        coefs = [nn.Parameter(torch.Tensor(config.num_basis)
+            ) for b in range(config.num_relations)]
         self.coefs = nn.ParameterList(coefs)
 
         self.reset_parameters(weight_init)
@@ -120,29 +117,3 @@ class BiDecoder(nn.Module):
 
         return out
 
-
-if __name__ == '__main__':
-    in_c = 2625
-    hid_c = 500
-    out_c = 75
-    num_basis = 2
-    num_relations = 5
-    drop_prob = 0.7
-    gcenc = GCEncoder(in_c, hid_c, out_c, num_relations, drop_prob)
-    bidec = BiDecoder(out_c, num_basis, num_relations)
-    rgc = RGCLayer(in_c, hid_c, num_relations, drop_prob)
-    dense = DenseLayer(in_c, out_c, drop_prob)
-
-    gae = GAE(in_c, hid_c, out_c, num_basis, num_relations, drop_prob)
-    print(gae.parameters())
-
-    params = rgc.parameters()
-    print(bidec.named_parameters())
-    for param in params:
-        print(param)
-
-    print(bidec.basis_matrix)
-    print(bidec.coefs)
-
-    print(bidec.basis_matrix.requires_grad)
-    print(bidec.coefs.requires_grad)
