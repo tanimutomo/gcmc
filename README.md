@@ -1,10 +1,11 @@
 # Graph Convolutional Matrix Completion based on Pytorch
 PyTorch and PyTorch geometric based implementation of [Graph Convolutional Matrix Completion](https://arxiv.org/abs/1706.02263).
 
-This repository is *NOT* an official implementation of that paper.
-The official implementation is [this](https://github.com/riannevdberg/gc-mc). which is based on Tensorflow.
+This repository is **NOT** an official implementation of that paper.  
+The official implementation is [this](https://github.com/riannevdberg/gc-mc) which is based on Tensorflow.
 
 ## Train and Test
+Default training dataset is MovieLens-100k.
 ### Docker (Recommend)
 - Install docker and docker-compose (see docker official document)
 - Clone this repository
