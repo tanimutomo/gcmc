@@ -1,3 +1,0 @@
-torch==1.0.0
-torchvision
-comet_ml
