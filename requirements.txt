@@ -1,0 +1,9 @@
+comet-ml
+pandas==0.23.4
+torch==1.0.0
+torchvision==0.2.1
+torch-scatter==1.1.1
+torch-sparse==0.2.3
+torch-cluster==1.2.3
+torch-spline-conv==1.0.5
+torch-geometric==1.0.1
