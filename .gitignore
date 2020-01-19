@@ -110,6 +110,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+.vscode/
 data/
 others/
 notebooks/
+
+Pipfile
