@@ -42,31 +42,31 @@ def main(config, comet=False):
 
 if __name__ == '__main__':
     config = {
-            # train setting
-            'epochs': 1000,
-            'lr': 0.01,
-            'weight_decay': 0,
-            'drop_prob': 0.7,
+        # train setting
+        'epochs': 1,
+        'lr': 0.01,
+        'weight_decay': 0,
+        'drop_prob': 0.7,
 
-            # network
-            'accum': 'split_stack',
-            'hidden_size': [500, 75],
-            'num_basis': 2,
-            'rgc_bn': True,
-            'rgc_relu': True,
-            'dense_bn': True,
-            'dense_relu': True,
-            'bidec_drop': False,
+        # network
+        'accum': 'split_stack',
+        'hidden_size': [500, 75],
+        'num_basis': 2,
+        'rgc_bn': True,
+        'rgc_relu': True,
+        'dense_bn': True,
+        'dense_relu': True,
+        'bidec_drop': False,
 
-            # dataset
-            'root': 'data/ml-100k',
-            'dataset_name': 'ml-100k',
+        # dataset
+        'root': 'data/ml-100k',
+        'dataset_name': 'ml-100k',
 
-            # comet-ml (optional)
-            'workspace': '',
-            'project_name': '',
-            'api_key': ''
-            }
+        # comet-ml (optional)
+        'workspace': '',
+        'project_name': '',
+        'api_key': ''
+    }
     # main(config, comet=True)
     main(config)
 
