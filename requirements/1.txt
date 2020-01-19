@@ -1,4 +1,5 @@
 comet-ml
+pyyaml
 pandas==0.23.4
 torch==1.0.0
 torchvision==0.2.1
