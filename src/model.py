@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from src.layers import RGCLayer, DenseLayer
+from layers import RGCLayer, DenseLayer
 
 
 # Main Model

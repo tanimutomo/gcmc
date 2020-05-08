@@ -1,77 +1,48 @@
+from comet_ml import Experiment
 import torch
-import torch.nn as nn
+import yaml
+
+from dataset import MCDataset
+from model import GAE
+from trainer import Trainer
+from utils import calc_rmse, ster_uniform, random_init, init_xavier, init_uniform, Config
 
 
-class Trainer:
-    def __init__(self, model, dataset, data, calc_rmse,
-            epochs, lr, weight_decay, experiment=None):
-        self.epochs = epochs
-        self.lr = lr
-        self.weight_decay = weight_decay
+def main(config, comet=False):
+    config = Config(config)
 
-        self.model = model
-        self.dataset = dataset
-        self.data = data
-        self.calc_rmse = calc_rmse
-        self.experiment = experiment
+    # comet-ml setting
+    if comet:
+        experiment = Experiment(api_key=config.api_key,
+                        project_name=config.project_name, workspace=config.workspace)
+        experiment.log_parameters(config)
 
-        self.train_setting()
+    # device and dataset setting
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    dataset = MCDataset(config.root, config.dataset_name)
+    data = dataset[0].to(device)
 
+    # add some params to config
+    config.num_nodes = dataset.num_nodes
+    config.num_relations = dataset.num_relations
+    config.num_users = int(data.num_users)
 
-    def train_setting(self):
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(),
-                lr=self.lr, weight_decay=self.weight_decay)
+    # set and init model
+    model = GAE(config, random_init).to(device)
+    model.apply(init_xavier)
 
-    def iterate(self):
-        for epoch in range(self.epochs):
-            loss, train_rmse = self.train(epoch)
-            test_rmse = self.test()
-            self.summary(epoch, loss, train_rmse, test_rmse)
-            if self.experiment is not None:
-                metrics = {
-                        'loss': loss,
-                        'train_rmse': train_rmse,
-                        'test_rmse': test_rmse,
-                        }
-                self.experiment.log_metrics(metrics, step=epoch)
-
-        print('END TRAINING')
+    # train
+    if comet:
+        trainer = Trainer(model, dataset, data, calc_rmse, config.epochs,
+                config.lr, config.weight_decay, experiment)
+    else:
+        trainer = Trainer(model, dataset, data, calc_rmse,
+                config.epochs, config.lr, config.weight_decay)
+    trainer.iterate()
 
 
-    def train(self, epoch):
-        self.model.train()
-        self.optimizer.zero_grad()
-        out = self.model(
-                self.data.x, self.data.edge_index,
-                self.data.edge_type, self.data.edge_norm
-                )
-        loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
-        loss.backward()
-        self.optimizer.step()
-
-        rmse = self.calc_rmse(out[self.data.train_idx], self.data.train_gt)
-        return loss.item(), rmse.item()
-
-
-    def test(self):
-        self.model.eval()
-        out = self.model(
-                self.data.x, self.data.edge_index, 
-                self.data.edge_type, self.data.edge_norm
-                )
-
-        rmse = self.calc_rmse(out[self.data.test_idx], self.data.test_gt)
-
-        return rmse.item()
-
-
-    def summary(self, epoch, loss, train_rmse=None, test_rmse=None):
-        if test_rmse is None:
-            print('[ Epoch: {:>4}/{} | Loss: {:.6f} ]'.format(
-                epoch, self.epochs, loss))
-        else:
-            print('[ Epoch: {:>4}/{} | Loss: {:.6f} | RMSE: {:.6f} | Test RMSE: {:.6f} ]'.format(
-                epoch, self.epochs, loss, train_rmse, test_rmse))
-            
-        
+if __name__ == '__main__':
+    with open('config.yml') as f:
+        config = yaml.safe_load(f)
+    main(config)
+    # main(config, comet=True)

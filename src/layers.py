@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import scatter_
-from src.utils import stack, split_stack
+from utils import stack, split_stack
 
 
 # First Layer of the Encoder (implemented by Pytorch Geometric)
