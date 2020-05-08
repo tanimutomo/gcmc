@@ -41,14 +41,12 @@ class RGCLayer(MessagePassing):
 
         self.reset_parameters(weight_init)
 
-
     def reset_parameters(self, weight_init):
         if self.accum == 'split_stack':
             weight_init(self.base_weight, self.in_c, self.out_c)
         else:
             for basis in self.ord_basis:
                 weight_init(basis, self.in_c, self.out_c)
-
 
     def forward(self, x, edge_index, edge_type, edge_norm=None):
         return self.propagate(self.accum, edge_index, x=x, edge_type=edge_type, edge_norm=edge_norm)
@@ -89,7 +87,6 @@ class RGCLayer(MessagePassing):
         out = self.update(out, *update_args)
 
         return out
-
 
     def message(self, x_j, edge_type, edge_norm):
         # create weight using ordinal weight sharing
@@ -135,8 +132,10 @@ class RGCLayer(MessagePassing):
         if self.accum == 'split_stack':
             drop_mask = drop_mask.unsqueeze(1)
         else:
-            drop_mask = torch.cat([drop_mask 
-                for r in range(self.num_relations)], 0).unsqueeze(1)
+            drop_mask = torch.cat(
+                [drop_mask for r in range(self.num_relations)],
+                dim=0,
+            ).unsqueeze(1)
 
         drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
 
@@ -144,7 +143,6 @@ class RGCLayer(MessagePassing):
         weight = weight * drop_mask
 
         return weight
-
 
 
 # Second Layer of the Encoder
@@ -162,16 +160,12 @@ class DenseLayer(nn.Module):
         if config.accum == 'stack':
             self.bn_u = nn.BatchNorm1d(config.num_users * config.num_relations)
             self.bn_i = nn.BatchNorm1d((
-                config.num_nodes - config.num_users) * config.num_relations)
+                config.num_nodes - config.num_users) * config.num_relations
+            )
         else:
             self.bn_u = nn.BatchNorm1d(config.num_users)
             self.bn_i = nn.BatchNorm1d(config.num_nodes - config.num_users)
         self.relu = nn.ReLU()
-
-        # self.reset_parameters(weight_init)
-
-    # def reset_parameters(self, weight_init):
-    #     weight_init(self.fc, self.in_c, self.out_c)
 
     def forward(self, u_features, i_features):
         u_features = self.dropout(u_features)
@@ -191,4 +185,3 @@ class DenseLayer(nn.Module):
             i_features = self.relu(i_features)
 
         return u_features, i_features
-

@@ -68,8 +68,8 @@ class BiDecoder(nn.Module):
         self.dropout = nn.Dropout(config.drop_prob)
         self.basis_matrix = nn.Parameter(
                 torch.Tensor(config.num_basis, self.feature_dim * self.feature_dim))
-        coefs = [nn.Parameter(torch.Tensor(config.num_basis)
-            ) for b in range(config.num_relations)]
+        coefs = [nn.Parameter(torch.Tensor(config.num_basis))
+                 for b in range(config.num_relations)]
         self.coefs = nn.ParameterList(coefs)
 
         self.reset_parameters(weight_init)

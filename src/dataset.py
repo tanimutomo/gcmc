@@ -34,7 +34,6 @@ class MCDataset(InMemoryDataset):
     def processed_file_names(self):
         return 'data.pt'
 
-    
     def download(self):
         if self.name == 'ml-100k':
             url = 'http://files.grouplens.org/datasets/movielens/ml-100k.zip'
@@ -45,7 +44,6 @@ class MCDataset(InMemoryDataset):
             shutil.move(file, self.raw_dir)
         os.rmdir(os.path.join(self.raw_dir, self.name))
 
-        
     def process(self):
         train_csv, test_csv = self.raw_paths
         train_df, train_nums = self.create_df(train_csv)
@@ -58,6 +56,7 @@ class MCDataset(InMemoryDataset):
 
         x = torch.arange(train_nums['node'], dtype=torch.long)
 
+        # Prepare edges
         edge_user = torch.tensor(train_df['user_id'].values)
         edge_item = torch.tensor(train_df['item_id'].values)
         edge_index = torch.stack((torch.cat((edge_user, edge_item), 0),
@@ -73,10 +72,9 @@ class MCDataset(InMemoryDataset):
             edge_norm = torch.where(edge_norm==idx,
                                     torch.tensor(count),
                                     edge_norm)
-
         edge_norm = (1 / edge_norm.to(torch.float))
 
-
+        # Prepare data
         data = Data(x=x, edge_index=edge_index)
         data.edge_type = edge_type
         data.edge_norm = edge_norm
@@ -90,7 +88,6 @@ class MCDataset(InMemoryDataset):
         data, slices = self.collate([data])
         torch.save((data, slices), self.processed_paths[0])
 
-    
     def create_df(self, csv_path):
         col_names = ['user_id', 'item_id', 'relation', 'ts']
         df = pd.read_csv(csv_path, sep='\t', names=col_names)
@@ -99,32 +96,25 @@ class MCDataset(InMemoryDataset):
         df['item_id'] = df['item_id'] - 1
         df['relation'] = df['relation'] - 1
 
-        nums = {
-                'user': df.max()['user_id'] + 1,
+        nums = {'user': df.max()['user_id'] + 1,
                 'item': df.max()['item_id'] + 1,
                 'node': df.max()['user_id'] + df.max()['item_id'] + 2,
-                'edge': len(df)
-                }
-
+                'edge': len(df)}
         return df, nums
-
 
     def create_gt_idx(self, df, nums):
         df['idx'] = df['user_id'] * nums['item'] + df['item_id']
         idx = torch.tensor(df['idx'])
         gt = torch.tensor(df['relation'])
-
         return idx, gt
 
-    
     def get(self, idx):
         data = torch.load(os.path.join(self.processed_dir, 'data.pt'))
         return data[0]
 
-        
     def __repr__(self):
         return '{}{}()'.format(self.name.upper(), self.__class__.__name__)
-        
+
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

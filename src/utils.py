@@ -14,7 +14,6 @@ class Config(dict):
     def __getattr__(self, name):
         if self._conf.get(name) is not None:
             return self._conf[name]
-
         return None
 
 
@@ -151,4 +150,3 @@ class AverageMeter:
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-        
