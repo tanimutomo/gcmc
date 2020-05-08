@@ -25,14 +25,15 @@ Please see [Pytorch Geometirc official document](https://rusty1s.github.io/pytor
 
 ## Train and Test
 ```
-python main.py
+cd src
+python train.py
 ```
 - Configuration:  
 The settings for train and test are in `config.yml`.  
 
 - Dataset:  
 Training dataset is MovieLens-100k.
-The dataset is automatically downloaded in `data/` by running `main.py`.
+The dataset is automatically downloaded in `data/` by running `src/train.py`.
 
 
 ## Results
