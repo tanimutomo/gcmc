@@ -1,32 +1,22 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Trainer:
     def __init__(self, model, dataset, data, calc_rmse,
-                 epochs, lr, weight_decay, experiment=None):
-        self.epochs = epochs
-        self.lr = lr
-        self.weight_decay = weight_decay
-
+                 optimizer, experiment=None):
         self.model = model
         self.dataset = dataset
         self.data = data
         self.calc_rmse = calc_rmse
+        self.optimizer = optimizer
         self.experiment = experiment
 
-        self.train_setting()
-
-    def train_setting(self):
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=self.lr, weight_decay=self.weight_decay
-        )
-
-    def iterate(self):
+    def training(self, epochs):
+        self.epochs = epochs
         for epoch in range(self.epochs):
-            loss, train_rmse = self.train(epoch)
+            loss, train_rmse = self.train_one(epoch)
             test_rmse = self.test()
             self.summary(epoch, loss, train_rmse, test_rmse)
             if self.experiment is not None:
@@ -37,11 +27,11 @@ class Trainer:
 
         print('END TRAINING')
 
-    def train(self, epoch):
+    def train_one(self, epoch):
         self.model.train()
         out = self.model(self.data.x, self.data.edge_index,
                          self.data.edge_type, self.data.edge_norm)
-        loss = self.criterion(out[self.data.train_idx], self.data.train_gt)
+        loss = F.cross_entropy(out[self.data.train_idx], self.data.train_gt)
 
         self.optimizer.zero_grad()
         loss.backward()

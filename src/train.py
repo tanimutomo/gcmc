@@ -38,12 +38,17 @@ def main(cfg, comet=False):
     model = GAE(cfg, random_init).to(device)
     model.apply(init_xavier)
 
+    # optimizer
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=cfg.lr, weight_decay=cfg.weight_decay,
+    )
+
     # train
     trainer = Trainer(
-        model, dataset, data, calc_rmse, cfg.epochs,
-        cfg.lr, cfg.weight_decay, experiment,
+        model, dataset, data, calc_rmse, optimizer, experiment,
     )
-    trainer.iterate()
+    trainer.training(cfg.epochs)
 
 
 if __name__ == '__main__':
