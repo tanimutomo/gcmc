@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from layers import RGCLayer, DenseLayer
-
+import time
 
 # Main Model
 class GAE(nn.Module):
@@ -10,9 +10,14 @@ class GAE(nn.Module):
         self.gcenc = GCEncoder(config, weight_init)
         self.bidec = BiDecoder(config, weight_init)
 
-    def forward(self, x, edge_index, edge_type, edge_norm):
+    def forward(self, x, edge_index, edge_type, edge_norm, iter_f_e, iter_f_d):
+        t1 = time.time()
         u_features, i_features = self.gcenc(x, edge_index, edge_type, edge_norm)
+        t2 = time.time()
         adj_matrices = self.bidec(u_features, i_features)
+        t3 = time.time()
+        iter_f_e.append(t2 - t1)
+        iter_f_d.append(t3 - t2)
 
         return adj_matrices
 

@@ -30,7 +30,7 @@ class RGCLayer(MessagePassing):
             self.dropout = nn.Dropout(self.drop_prob)
         else:
             # ordinal basis matrices in_c * out_c = 2625 * 500
-            ord_basis = [nn.Parameter(torch.Tensor(1, in_c * out_c)) for r in range(self.num_relations)]
+            ord_basis = [nn.Parameter(torch.Tensor(1, self.in_c * self.out_c)) for r in range(self.num_relations)]
             self.ord_basis = nn.ParameterList(ord_basis)
         self.relu = nn.ReLU()
 
@@ -40,6 +40,7 @@ class RGCLayer(MessagePassing):
             self.bn = nn.BatchNorm1d(self.in_c)
 
         self.reset_parameters(weight_init)
+        self.dropout = nn.Dropout(self.drop_prob)
 
     def reset_parameters(self, weight_init):
         if self.accum == 'split_stack':
@@ -62,7 +63,7 @@ class RGCLayer(MessagePassing):
 
         size = None
         message_args = []
-        for arg in self.message_args:
+        for arg in self.__user_args__:
             if arg[-2:] == '_i':
                 # tmp is x
                 tmp = kwargs[arg[:-2]]
@@ -75,7 +76,8 @@ class RGCLayer(MessagePassing):
             else:
                 message_args.append(kwargs[arg])
 
-        update_args = [kwargs[arg] for arg in self.update_args]
+        update_args = set(self.__update_params__.keys())
+        update_args = [kwargs[arg] for arg in update_args]
 
         out = self.message(*message_args)
         if aggr == 'split_stack':
@@ -109,10 +111,11 @@ class RGCLayer(MessagePassing):
             weight = weight.reshape(-1, self.out_c)
             # index has target features index in weitht matrix
             index = edge_type * self.in_c + x_j
+            index = index.long()
             # this opration is that index(160000) specify the nodes idx in weight matrix
             # for getting the features corresponding edge_index
 
-        weight = self.node_dropout(weight)
+        #weight = self.node_dropout(weight)
         out = weight[index]
 
         # out is edges(160000) x hidden(500)
@@ -124,25 +127,9 @@ class RGCLayer(MessagePassing):
             aggr_out = self.bn(aggr_out.unsqueeze(0)).squeeze(0)
         if self.relu:
             aggr_out = self.relu(aggr_out)
+
+        aggr_out = self.dropout(aggr_out)
         return aggr_out
-
-    def node_dropout(self, weight):
-        drop_mask = torch.rand(self.in_c) + (1 - self.drop_prob)
-        drop_mask = torch.floor(drop_mask).type(torch.float)
-        if self.accum == 'split_stack':
-            drop_mask = drop_mask.unsqueeze(1)
-        else:
-            drop_mask = torch.cat(
-                [drop_mask for r in range(self.num_relations)],
-                dim=0,
-            ).unsqueeze(1)
-
-        drop_mask = drop_mask.expand(drop_mask.size(0), self.out_c)
-
-        assert weight.shape == drop_mask.shape
-        weight = weight * drop_mask
-
-        return weight
 
 
 # Second Layer of the Encoder

@@ -75,7 +75,8 @@ def stack(features, index, relations, dim_size):
     """
     out = torch.zeros(dim_size * (torch.max(relations) + 1), features.shape[1])
     tar_idx = relations * dim_size + index
-    out[tar_idx] = features
+    out.index_add_(0, tar_idx, features)
+    #out[tar_idx] = features
     # for feature, idx, relation in zip(features, index, relations):
     #     tar_idx = relation * dim_size + index
     #     out[tar_idx] = feature
@@ -124,7 +125,7 @@ def truncated_normal(tensor, mean=0, std=1):
 
 def calc_rmse(pred, gt):
     pred = F.softmax(pred, dim=1)
-    expected_pred = torch.zeros(gt.shape)
+    expected_pred = torch.zeros(gt.shape).cuda()
     for relation in range(pred.shape[1]):
         expected_pred += pred[:, relation] * (relation + 1)
 

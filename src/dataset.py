@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from torch_scatter import scatter_add
 from torch_geometric.data import InMemoryDataset, Data, download_url, extract_zip
-from torch_geometric.utils import one_hot
 
 
 class MCDataset(InMemoryDataset):
@@ -28,7 +27,10 @@ class MCDataset(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-        return ['u1.base', 'u1.test']
+        if self.name == 'ml-100k':
+            return ['u1.base', 'u1.test']
+        else:
+            return ['ratings.dat', 'ratings.dat']
 
     @property
     def processed_file_names(self):
@@ -37,6 +39,8 @@ class MCDataset(InMemoryDataset):
     def download(self):
         if self.name == 'ml-100k':
             url = 'http://files.grouplens.org/datasets/movielens/ml-100k.zip'
+        if self.name == 'ml-1m':
+            url = 'http://files.grouplens.org/datasets/movielens/ml-1m.zip'
         path = download_url(url, self.root)
         extract_zip(path, self.raw_dir, self.name)
         os.unlink(path)
@@ -46,9 +50,30 @@ class MCDataset(InMemoryDataset):
 
     def process(self):
         train_csv, test_csv = self.raw_paths
-        train_df, train_nums = self.create_df(train_csv)
-        test_df, test_nums = self.create_df(test_csv)
+        if self.name == 'ml-100k':
+            train_df, train_nums = self.create_df(train_csv)
+            test_df, test_nums = self.create_df(test_csv)
+        elif self.name == 'ml-1m':
+            train_df, train_nums = self.create_df(train_csv)
 
+            num_test = int(np.ceil(train_nums['edge'] * 0.1))
+            shuffled_idx = np.random.permutation(train_nums['edge'])
+            test_si = shuffled_idx[: num_test]
+            train_si = shuffled_idx[num_test: ]
+            test_si = np.sort(test_si)
+            train_si = np.sort(train_si)
+            test_df = train_df.iloc[test_si]
+            train_df = train_df.iloc[train_si]
+
+            train_nums = {'user': train_df.max()['user_id'] + 1,
+                    'item': train_df.max()['item_id'] + 1,
+                    'node': train_df.max()['user_id'] + train_df.max()['item_id'] + 2,
+                    'edge': len(train_df)}
+            test_nums = {'user': test_df.max()['user_id'] + 1,
+                    'item': test_df.max()['item_id'] + 1,
+                    'node': test_df.max()['user_id'] + test_df.max()['item_id'] + 2,
+                    'edge': len(test_df)}
+ 
         train_idx, train_gt = self.create_gt_idx(train_df, train_nums)
         test_idx, test_gt = self.create_gt_idx(test_df, train_nums)
 
@@ -63,7 +88,8 @@ class MCDataset(InMemoryDataset):
                                   torch.cat((edge_item, edge_user), 0)), 0)
         edge_index = edge_index.to(torch.long)
 
-        edge_type = torch.tensor(train_df['relation'])
+        tr = np.array([r for r in train_df['relation']])
+        edge_type = torch.tensor(tr)
         edge_type = torch.cat((edge_type, edge_type), 0)
 
         edge_norm = copy.deepcopy(edge_index[1])
@@ -89,8 +115,12 @@ class MCDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
     def create_df(self, csv_path):
-        col_names = ['user_id', 'item_id', 'relation', 'ts']
-        df = pd.read_csv(csv_path, sep='\t', names=col_names)
+        if self.name == 'ml-1m':
+            col_names = ['user_id', 'item_id', 'relation', 'ts']
+            df = pd.read_csv(csv_path, sep='::', names=col_names)
+        elif self.name == 'ml-100k':
+            col_names = ['user_id', 'item_id', 'relation', 'ts']
+            df = pd.read_csv(csv_path, sep='\t', names=col_names)
         df = df.drop('ts', axis=1)
         df['user_id'] = df['user_id'] - 1
         df['item_id'] = df['item_id'] - 1
@@ -103,9 +133,11 @@ class MCDataset(InMemoryDataset):
         return df, nums
 
     def create_gt_idx(self, df, nums):
-        df['idx'] = df['user_id'] * nums['item'] + df['item_id']
-        idx = torch.tensor(df['idx'])
-        gt = torch.tensor(df['relation'])
+        idx = df['user_id'] * nums['item'] + df['item_id']
+        idx = np.array([i for i in idx])
+        idx = torch.tensor(idx)
+        rel = np.array([r for r in df['relation']])
+        gt = torch.tensor(rel)
         return idx, gt
 
     def get(self, idx):

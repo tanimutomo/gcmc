@@ -11,6 +11,7 @@ from utils import calc_rmse, ster_uniform, random_init, init_xavier, init_unifor
 def main(cfg, comet=False):
     cfg = Config(cfg)
 
+    print('start')
     # comet-ml setting
     if comet:
         experiment = Experiment(
@@ -23,10 +24,13 @@ def main(cfg, comet=False):
         experiment = None
 
     # device and dataset setting
-    device = (torch.device(f'cuda:{cfg.gpu_id}')
-        if torch.cuda.is_available() and cfg.gpu_id >= 0
-        else torch.device('cpu'))
+    #device = (torch.device(f'cuda:{cfg.gpu_id}')
+    #    if torch.cuda.is_available() and cfg.gpu_id >= 0
+    #    else torch.device('cpu'))
+    device = torch.device('cuda:0')
+    print(device)
     dataset = MCDataset(cfg.root, cfg.dataset_name)
+    print('load done')
     data = dataset[0].to(device)
 
     # add some params to config
@@ -36,6 +40,7 @@ def main(cfg, comet=False):
 
     # set and init model
     model = GAE(cfg, random_init).to(device)
+    model.cuda()
     model.apply(init_xavier)
 
     # optimizer
